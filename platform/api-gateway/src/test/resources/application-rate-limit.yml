@@ -1,0 +1,18 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@clientRateLimiter}"
+                key-resolver: "#{@clientKeyResolver}"
+gateway:
+  rate-limit:
+    anonymous:
+      replenish-rate: 1
+      burst-capacity: 2
+    signed-in:
+      replenish-rate: 1
+      burst-capacity: 2
