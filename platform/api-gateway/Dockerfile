@@ -10,6 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /app
 COPY --from=build /workspace/platform/api-gateway/target/api-gateway-0.1.0-SNAPSHOT.jar app.jar
 USER app
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD curl --fail --silent http://localhost:8080/actuator/health >/dev/null || exit 1
+EXPOSE 8080 8090
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD curl --fail --silent http://localhost:8090/actuator/health >/dev/null || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

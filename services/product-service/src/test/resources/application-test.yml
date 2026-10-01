@@ -1,0 +1,18 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/ecommerce-platform
+eureka:
+  client:
+    enabled: false

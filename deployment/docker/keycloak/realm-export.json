@@ -32,7 +32,12 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "secret": "${GATEWAY_CLIENT_SECRET}"
+      "secret": "${GATEWAY_CLIENT_SECRET}",
+      "protocolMappers": [
+        {"name": "product-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "product-service", "access.token.claim": "true", "id.token.claim": "false"}},
+        {"name": "order-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "order-service", "access.token.claim": "true", "id.token.claim": "false"}},
+        {"name": "inventory-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "inventory-service", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
     },
     {
       "clientId": "order-service",
@@ -41,7 +46,11 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "secret": "${ORDER_CLIENT_SECRET}"
+      "secret": "${ORDER_CLIENT_SECRET}",
+      "protocolMappers": [
+        {"name": "inventory-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "inventory-service", "access.token.claim": "true", "id.token.claim": "false"}},
+        {"name": "product-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "product-service", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
     },
     {
       "clientId": "payment-operator",
@@ -50,7 +59,10 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "secret": "${PAYMENT_OPERATOR_CLIENT_SECRET}"
+      "secret": "${PAYMENT_OPERATOR_CLIENT_SECRET}",
+      "protocolMappers": [
+        {"name": "payment-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "payment-service", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
     }
   ],
   "users": [

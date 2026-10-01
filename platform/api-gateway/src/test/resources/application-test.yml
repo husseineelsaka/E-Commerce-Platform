@@ -1,0 +1,15 @@
+spring:
+  config:
+    import: ""
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters: []
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+eureka:
+  client:
+    enabled: false

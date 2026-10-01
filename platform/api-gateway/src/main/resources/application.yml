@@ -5,11 +5,76 @@ spring:
     name: api-gateway
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/ecommerce-platform}
+      client:
+        registration:
+          gateway-service:
+            provider: keycloak
+            client-id: gateway-service
+            client-secret: ${GATEWAY_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/ecommerce-platform}/protocol/openid-connect/token
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@clientRateLimiter}"
+                key-resolver: "#{@clientKeyResolver}"
+          routes:
+            - id: product-reads
+              uri: ${PRODUCT_SERVICE_URI:lb://product-service}
+              predicates:
+                - Method=GET
+                - Path=/api/v1/products,/api/v1/products/**
+            - id: product-create
+              uri: ${PRODUCT_SERVICE_URI:lb://product-service}
+              predicates:
+                - Method=POST
+                - Path=/api/v1/products
+            - id: product-update
+              uri: ${PRODUCT_SERVICE_URI:lb://product-service}
+              predicates:
+                - Method=PUT,DELETE
+                - Path=/api/v1/products/{id}
+            - id: orders
+              uri: ${ORDER_SERVICE_URI:lb://order-service}
+              predicates:
+                - Path=/api/v1/orders,/api/v1/orders/**
+            - id: inventory-admin
+              uri: ${INVENTORY_SERVICE_URI:lb://inventory-service}
+              predicates:
+                - Method=GET,PUT
+                - Path=/api/v1/inventory/{productId}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+gateway:
+  rate-limit:
+    anonymous:
+      replenish-rate: 100
+      burst-capacity: 200
+    signed-in:
+      replenish-rate: 20
+      burst-capacity: 40
+    trusted-proxies: []
 eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
 management:
+  # Actuator listens on its own port so the public port 8080 serves only API routes (ADD §7).
+  server:
+    port: ${MANAGEMENT_PORT:8090}
   endpoints:
     web:
       exposure:
