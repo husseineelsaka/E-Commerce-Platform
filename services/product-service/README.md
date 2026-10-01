@@ -26,6 +26,24 @@ Through the Gateway on port 8080, these routes are public to shoppers and need n
 
 The list defaults to page 0 and size 20. Page must be at least 0; size must be 1–100. Invalid paging returns 400. Unauthorized requests return 401 and disallowed clients return 403. Error bodies contain `status`, `error`, `message`, and `path`. Actuator health, info, and prometheus paths are available without a token on the internal service network.
 
+## Admin writes
+
+The Gateway accepts an admin user token, validates it, and forwards a `gateway-service` token and the trusted `ADMIN` role to Product. Product allows these writes only when the service token has `azp=gateway-service` and the forwarded role is `ADMIN`. Missing tokens return 401; other clients or roles return 403.
+
+| Endpoint | Success | Errors |
+| --- | --- | --- |
+| `POST /api/v1/products` | 201 `ProductView` and `Location: /api/v1/products/{id}` | 400 invalid body or unknown category |
+| `PUT /api/v1/products/{id}` | 200 `ProductView` | 400 invalid body or unknown category; 404 unknown product |
+| `DELETE /api/v1/products/{id}` | 204 | 404 unknown product |
+
+Create and update accept `{"name":"Desk Lamp","price":34.00,"categoryId":1}`. Name must not be blank and must be at most 255 characters; price must be positive with at most two decimal places. Responses contain `{id, name, price, categoryId, categoryName}`, never the JPA entity. Errors use `{status, error, message, path}`.
+
+With an admin user token in `ADMIN_TOKEN`, send a create request through the Gateway:
+
+```bash
+curl -i -X POST 'http://localhost:8080/api/v1/products' -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' --data '{"name":"Desk Lamp","price":34.00,"categoryId":1}'
+```
+
 ## Tests
 
 From the repository root (Docker is required for `ProductRepositoryIT`):

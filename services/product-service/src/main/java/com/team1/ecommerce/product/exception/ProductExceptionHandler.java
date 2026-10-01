@@ -4,7 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -18,6 +20,22 @@ public class ProductExceptionHandler {
     @ExceptionHandler({InvalidPagingException.class, MethodArgumentTypeMismatchException.class})
     ResponseEntity<Map<String, Object>> badRequest(Exception exception, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(CategoryNotFoundException.class)
+    ResponseEntity<Map<String, Object>> unknownCategory(CategoryNotFoundException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ResponseEntity<Map<String, Object>> invalidBody(MethodArgumentNotValidException exception, HttpServletRequest request) {
+        var field = exception.getBindingResult().getFieldErrors().getFirst();
+        return error(HttpStatus.BAD_REQUEST, field.getField() + " " + field.getDefaultMessage(), request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<Map<String, Object>> unreadableBody(HttpMessageNotReadableException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "Invalid JSON request body", request);
     }
 
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message, HttpServletRequest request) {
