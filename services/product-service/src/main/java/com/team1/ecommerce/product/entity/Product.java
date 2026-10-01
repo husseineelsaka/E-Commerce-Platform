@@ -39,4 +39,22 @@ public class Product {
     public Long getId() {
         return id;
     }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void update(Category category, String name, BigDecimal price) {
+        this.category = category;
+        this.name = name;
+        this.price = price;
+    }
 }

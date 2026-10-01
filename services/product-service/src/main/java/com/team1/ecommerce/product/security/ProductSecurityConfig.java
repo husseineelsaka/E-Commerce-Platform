@@ -44,9 +44,14 @@ public class ProductSecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper mapper) throws Exception {
-        // ponytail: S2 authorizes only reads; S3 can add write rules here when those endpoints exist.
         return http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/products")
+                    .access(adminGateway())
+                .requestMatchers(HttpMethod.PUT, "/api/v1/products/*")
+                    .access(adminGateway())
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/products/*")
+                    .access(adminGateway())
                 .requestMatchers(HttpMethod.GET, "/api/v1/products/*")
                     .access(caller("gateway-service", "order-service"))
                 .requestMatchers(HttpMethod.GET, "/api/v1/products")
@@ -78,6 +83,17 @@ public class ProductSecurityConfig {
                 return new AuthorizationDecision(false);
             }
             return new AuthorizationDecision(Arrays.asList(allowedClients).contains(jwt.getToken().getClaimAsString("azp")));
+        };
+    }
+
+    private AuthorizationManager<RequestAuthorizationContext> adminGateway() {
+        return (authentication, context) -> {
+            Authentication caller = authentication.get();
+            if (!(caller instanceof JwtAuthenticationToken jwt)) {
+                return new AuthorizationDecision(false);
+            }
+            return new AuthorizationDecision("gateway-service".equals(jwt.getToken().getClaimAsString("azp"))
+                    && caller.getAuthorities().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getAuthority())));
         };
     }
 
