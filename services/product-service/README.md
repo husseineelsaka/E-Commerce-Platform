@@ -6,7 +6,7 @@ Product catalogue reads use PostgreSQL `product_db`. Flyway creates `category` a
 
 Use Java 21 or newer and Maven. Start PostgreSQL with the `product_db` database and `product_owner` role from `deployment/docker/postgres/init-databases.sh`; then start Config Server from `config-repo/`, Eureka, and the Gateway. Keycloak must serve the `ecommerce-platform` realm and issue service tokens with `product-service` in `aud`.
 
-Set `PRODUCT_DB_PASSWORD` in the environment. `PRODUCT_DB_HOST` defaults to `localhost`; `KEYCLOAK_ISSUER_URI` defaults to `http://localhost:8180/realms/ecommerce-platform`. No password default is provided.
+Set `PRODUCT_DB_PASSWORD` in the environment. `PRODUCT_DB_HOST` defaults to `localhost` and `PRODUCT_DB_PORT` to `5432` (match `POSTGRES_HOST_PORT` in `deployment/docker/.env`); `KEYCLOAK_ISSUER_URI` defaults to `http://localhost:8180/realms/ecommerce-platform`. No password default is provided.
 
 From the repository root:
 
