@@ -182,7 +182,7 @@ If the Architecture Review at S25 raises risks that differ from F1 and F2, we ad
 
 **Identity:** Keycloak realm `ecommerce-platform`, roles `ADMIN` and `CUSTOMER`, test users `admin-test` and `customer-test`. Users sign in through the `user-sign-in` client.
 
-**Token propagation:** the Gateway validates the user's JWT, removes any `X-User-*` headers sent by the client, adds `X-User-Id` and `X-User-Roles` from the validated token, and replaces the bearer token with its own `gateway-service` Client Credentials token. Business services check issuer, signature, lifetime, audience, and the calling client.
+**Token propagation:** the Gateway validates the user's JWT, removes any `X-User-*` headers sent by the client, adds `X-User-Id` and `X-User-Roles` from the validated token, and replaces the bearer token with its own `gateway-service` Client Credentials token. Business services check issuer, signature, lifetime, audience, and the calling client. The L0 realm (`deployment/docker/keycloak/realm-export.json`) defines the clients and roles but no audience mappers yet; S1 adds one audience mapper per receiving service, and every service rejects tokens without its own audience.
 
 | Endpoint group | Allowed caller | User role |
 | --- | --- | --- |
@@ -191,13 +191,28 @@ If the Architecture Review at S25 raises risks that differ from F1 and F2, we ad
 | Order endpoints, review submit | `gateway-service` | CUSTOMER (ownership checked in the service) |
 | Inventory stock check | `order-service` | none |
 | Payment create / refund | `payment-operator` | none |
+| Actuator `/actuator/health`, `/actuator/prometheus` | not routed through the Gateway; reachable only inside the service network (Compose network, cluster) | none |
 | Anything else | denied | — |
 
-**Rate limits (FR-13, Redis):** anonymous clients keyed by client IP: 100 requests/s replenish, burst 200 — high enough that k6 read tests from one machine measure latency, not 429s. Signed-in users keyed by JWT subject: 20 requests/s, burst 40. `X-Forwarded-For` is trusted only from the ingress.
+**Rate limits (FR-13, Redis):** Spring Cloud Gateway `RedisRateLimiter` on the public routes.
 
-**Secrets:** never in Git. Compose reads them from a local `.env` (in `.gitignore`); Kubernetes uses Secrets; CI uses GitHub Actions secrets. Keycloak client secrets are injected at startup.
+| Client | Key | Replenish rate | Burst capacity |
+| --- | --- | --- | --- |
+| Anonymous | client IP | 100 requests/s | 200 |
+| Signed in | JWT subject | 20 requests/s | 40 |
 
-**Images:** multi-stage Dockerfile, Eclipse Temurin 21 JRE base, runs as a non-root user, healthcheck on `/actuator/health`.
+`X-Forwarded-For` is trusted only from the ingress; otherwise the connection's remote address is the key. S5 puts both rates in `config-repo/api-gateway.yml`, so a test run can override them without a rebuild.
+
+These numbers are checked against the §8 k6 scenarios, which all run from one machine (one IP) and use the single `customer-test` user:
+
+- Product read load needs ≥ 50 req/s from one IP, which is below the 100 req/s anonymous rate.
+- Order load uses 20 VUs with `sleep(1)` per iteration, so each VU sends at most one request per second: ≤ 20 req/s for one subject, within the 20 req/s rate and the 40 burst.
+- The smoke test uses 1 VU with `sleep(1)`, about 1 req/s.
+- The stress test deliberately goes past 100 req/s, so it runs with the anonymous rate raised through `config-repo/api-gateway.yml` (see §8). A separate check shows that the default limit returns 429 to the over-limit client and keeps serving a second client.
+
+**Secrets:** never in Git. Compose reads them from `deployment/docker/.env`, which is in `.gitignore`; `deployment/docker/.env.example` lists every variable with `CHANGE_ME` values. The realm file holds `${GATEWAY_CLIENT_SECRET}`, `${ORDER_CLIENT_SECRET}`, `${PAYMENT_OPERATOR_CLIENT_SECRET}`, `${ADMIN_USER_PASSWORD}`, and `${CUSTOMER_USER_PASSWORD}` placeholders, which Keycloak replaces from the container environment at import. Kubernetes uses Secrets; CI uses GitHub Actions secrets.
+
+**Images:** multi-stage Dockerfile per app (`maven:3.9.9-eclipse-temurin-21` build stage, `eclipse-temurin:21-jre` runtime), runs as the non-root user `app` (UID 10001), `HEALTHCHECK` with `curl` on `/actuator/health`.
 
 **Kubernetes:** local **kind** cluster. One Helm chart per service under `deployment/helm/`. Readiness probe `/actuator/health/readiness`, liveness `/actuator/health/liveness`. One ServiceAccount per service with no extra permissions (`automountServiceAccountToken: false`). Only the Gateway is exposed; business services are `ClusterIP`.
 
@@ -219,17 +234,17 @@ If the Architecture Review at S25 raises risks that differ from F1 and F2, we ad
 - **Web slice** (`@WebMvcTest`): role and ownership rules per controller.
 - **Integration** (Testcontainers, real PostgreSQL and Flyway): at least one per database-owning service — Product, Order, Inventory, Payment, Review.
 - **Kafka integration:** duplicate delivery and DLT behaviour (S10, S11, S12, S15).
-- **Contract:** Pact test for Order ↔ Inventory stock check (recommended by the handbook).
-- **Coverage target:** ≥ 60% line coverage on service layers, enforced by JaCoCo in CI.
+- **Contract (optional):** Pact test for the Order ↔ Inventory stock check, recommended by the handbook. We add it after S6 and S8 only if L2 finishes early; the stock-check rules are already covered by the web-slice and integration tests.
+- **Coverage target:** ≥ 60% line coverage on service layers. Today the parent POM runs JaCoCo `prepare-agent` and `report` on `mvn verify`, and CI runs `mvn -B verify`. The first service tests (L1) add a `jacoco:check` rule (`LINE` ≥ 0.60 on the `service` packages) so the CI build fails below the target.
 
 **k6 scenarios (Gate G3):**
 
 | Scenario | Target |
 | --- | --- |
-| Smoke: 1 VU, every public endpoint incl. reviews | 0 errors |
-| Load: `GET /api/v1/products` and `/{id}` through Gateway | P95 < 200 ms (cached), ≥ 50 req/s |
-| Load: `POST /api/v1/orders`, 20 VUs | P95 < 800 ms |
-| Stress: ramp product reads until errors > 1% | record the breaking point and the bottleneck |
+| Smoke: 1 VU, `sleep(1)`, every public endpoint (reviews from L6) | 0 errors |
+| Load: `GET /api/v1/products` and `/{id}` through Gateway, anonymous | P95 < 200 ms (cached), ≥ 50 req/s, no 429 |
+| Load: `POST /api/v1/orders`, 20 VUs, `customer-test` token, `sleep(1)` per iteration | P95 < 800 ms, no 429 |
+| Stress: ramp product reads until errors > 1%, with the anonymous rate raised in `config-repo/api-gateway.yml` | record the breaking point and the bottleneck (with the default limit, the first errors would only be 429s) |
 
 **Top 5 project risks:**
 
