@@ -28,6 +28,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
+import org.springframework.cache.support.NoOpCacheManager;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -39,9 +45,23 @@ import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @WebMvcTest(ProductController.class)
-@Import({ProductService.class, ProductSecurityConfig.class, ProductExceptionHandler.class})
+@Import({ProductService.class, ProductSecurityConfig.class, ProductExceptionHandler.class,
+        ProductControllerTest.NoCacheConfig.class})
 @ActiveProfiles("test")
 class ProductControllerTest {
+    @TestConfiguration
+    static class NoCacheConfig {
+        @Bean
+        CacheManager cacheManager() {
+            return new NoOpCacheManager();
+        }
+
+        @Bean
+        CacheErrorHandler cacheErrorHandler() {
+            return new SimpleCacheErrorHandler();
+        }
+    }
+
     @Autowired
     MockMvc mvc;
 

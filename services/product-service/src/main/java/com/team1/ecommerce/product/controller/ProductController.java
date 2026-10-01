@@ -1,11 +1,11 @@
 package com.team1.ecommerce.product.controller;
 
 import com.team1.ecommerce.product.dto.ProductRequest;
+import com.team1.ecommerce.product.dto.ProductPage;
 import com.team1.ecommerce.product.dto.ProductView;
 import com.team1.ecommerce.product.service.ProductService;
 import jakarta.validation.Valid;
 import java.net.URI;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +27,7 @@ public class ProductController {
     }
 
     @GetMapping
-    public Page<ProductView> browse(@RequestParam(name = "page", defaultValue = "0") int page,
+    public ProductPage browse(@RequestParam(name = "page", defaultValue = "0") int page,
                                     @RequestParam(name = "size", defaultValue = "20") int size) {
         return products.browse(page, size);
     }
