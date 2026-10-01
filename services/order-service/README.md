@@ -1,6 +1,6 @@
 # order-service
 
-Places orders and serves customers their own orders, in `order_db`. Port 8082. Story S8 (FR-05, FR-06, FR-10). Publishing the outbox to Kafka and the Saga are stories S9–S11.
+Places orders and serves customers their own orders, in `order_db`. Port 8082. Story S8 (FR-05, FR-06, FR-10). Saga participation is story S11.
 
 ## Prerequisites
 
@@ -28,6 +28,14 @@ mvn -pl services/order-service spring-boot:run
 | Any item out of stock | 409, nothing saved |
 | Product or Inventory unavailable, slow, or circuit open | 503, nothing saved |
 
+## Saga (Kafka)
+
+- **Outbox publisher:** every 500 ms (`outbox.publisher.poll-interval`) unpublished `outbox_event` rows are sent to `order-events`, keyed by `orderId`, then marked published. Rows are locked with `FOR UPDATE SKIP LOCKED`; a failed send is retried on the next poll.
+- **Outcomes:** Order consumes `inventory-events` and `payment-events`. `PaymentCompleted` → `CONFIRMED` and `OrderConfirmed`; `PaymentFailed` or `InventoryReservationFailed` → `CANCELLED` and `OrderCancelled` with the reason. Other event types are ignored.
+- **Exactly one outcome:** the order changes only from `PENDING` (`UPDATE … WHERE status = 'PENDING'`); each `eventId` is recorded in `processed_event` in the same transaction, so duplicate and late events change nothing.
+- A record that still fails after 3 retries is parked on `<topic>.DLT`.
+- `KAFKA_BOOTSTRAP_SERVERS` defaults to `localhost:9092`.
+
 ## Reading orders
 
 | Method and path | Result |
@@ -54,4 +62,4 @@ curl http://localhost:8080/api/v1/orders -H "Authorization: Bearer $TOKEN"
 mvn -pl services/order-service -am verify
 ```
 
-`OrderControllerTest` covers ownership and caller rules (`cannotReadOtherCustomersOrder`); `OrderServiceTest` uses stubbed Product and Inventory HTTP services (`inventoryDownRejectsQuickly`, out of stock, unknown product without retry); `OrderServiceIT.savesOrderAndOutboxTogether` runs on Testcontainers PostgreSQL (Docker required) and also proves a failed outbox insert leaves no order.
+`OrderControllerTest` covers ownership and caller rules (`cannotReadOtherCustomersOrder`); `OrderServiceTest` uses stubbed Product and Inventory HTTP services (`inventoryDownRejectsQuickly`, out of stock, unknown product without retry); `OrderServiceIT.savesOrderAndOutboxTogether` runs on Testcontainers PostgreSQL (Docker required) and also proves a failed outbox insert leaves no order; `OrderSagaIT` runs on Testcontainers PostgreSQL and Kafka (outbox publishing, outcomes, `lateEventIsIgnored`, duplicate events).

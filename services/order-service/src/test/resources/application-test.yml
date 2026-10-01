@@ -24,6 +24,13 @@ spring:
         provider:
           keycloak:
             token-uri: http://localhost:1/realms/ecommerce-platform/protocol/openid-connect/token
+  # Tests that need Kafka (OrderSagaIT) switch these back on with a Testcontainers broker.
+  kafka:
+    listener:
+      auto-startup: false
 eureka:
   client:
+    enabled: false
+outbox:
+  publisher:
     enabled: false

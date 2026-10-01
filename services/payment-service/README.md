@@ -1,6 +1,6 @@
 # payment-service
 
-Simulated, idempotent payments in `payment_db`. Port 8083. Story S7 (FR-08). The Saga charge path (Kafka, Resilience4j) is story S9.
+Simulated, idempotent payments in `payment_db`. Port 8083. Story S7 (FR-08). The Saga charge path is story S9 (below).
 
 ## Prerequisites
 
@@ -41,10 +41,18 @@ done
 
 The first call returns 201 and the second returns 200 with the same `paymentId`.
 
+## Saga (Kafka)
+
+- Payment consumes `inventory-events`. On `InventoryReserved` it charges once per order (idempotency key = `orderId`, ADD §3.4) and publishes `PaymentCompleted` or `PaymentFailed` to `payment-events` through its outbox (500 ms poller).
+- The simulated charge runs inside Resilience4j Retry (3 attempts, 200 ms apart) and CircuitBreaker (`resilience4j.*.charge` in `application.yml`). When retries are exhausted or the circuit is open, the payment is stored `FAILED` and `PaymentFailed` is published, which starts compensation in Inventory and Order.
+- Each `eventId` is recorded in `processed_event` in the same transaction; an order that already has a payment is never charged again. A record that still fails after 3 retries is parked on `<topic>.DLT`.
+- If payment-service is stopped, `InventoryReserved` events wait in Kafka and the order stays `PENDING`; on restart Payment resumes from its committed offset (NFR-01).
+- `KAFKA_BOOTSTRAP_SERVERS` defaults to `localhost:9092`.
+
 ## Tests
 
 ```sh
 mvn -pl services/payment-service -am verify
 ```
 
-`PaymentControllerTest` covers the HTTP contract and caller rules; `PaymentServiceTest.sameKeyChargesOnce` proves one charge per key; `PaymentServiceIT` uses Testcontainers PostgreSQL (Docker required) for the unique constraints, concurrent duplicates, and refund rules.
+`PaymentControllerTest` covers the HTTP contract and caller rules; `PaymentServiceTest.sameKeyChargesOnce` proves one charge per key; `PaymentServiceIT` uses Testcontainers PostgreSQL (Docker required) for the unique constraints, concurrent duplicates, and refund rules; `PaymentEventListenerIT` uses PostgreSQL and Kafka (`duplicateInventoryReservedChargesOnce`, exhausted retries → `PaymentFailed`).

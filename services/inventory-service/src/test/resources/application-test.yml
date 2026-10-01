@@ -14,6 +14,13 @@ spring:
         jwt:
           # Unreachable on purpose: tests must not depend on a running Keycloak (CI has none).
           issuer-uri: http://localhost:1/realms/ecommerce-platform
+  # Tests that need Kafka (InventoryEventListenerIT) switch these back on with a Testcontainers broker.
+  kafka:
+    listener:
+      auto-startup: false
 eureka:
   client:
+    enabled: false
+outbox:
+  publisher:
     enabled: false
