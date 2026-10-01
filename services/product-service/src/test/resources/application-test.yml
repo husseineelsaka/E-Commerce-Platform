@@ -12,7 +12,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/ecommerce-platform
+          # Unreachable on purpose: tests must not depend on a running Keycloak (CI has none).
+          issuer-uri: http://localhost:1/realms/ecommerce-platform
 eureka:
   client:
     enabled: false
