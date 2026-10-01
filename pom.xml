@@ -37,6 +37,8 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version>
+          <!-- Keep parameter names for Spring (@Query :params, @PathVariable); spring-boot-starter-parent does the same. -->
+          <configuration><parameters>true</parameters></configuration>
         </plugin>
         <plugin>
           <groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId><version>${spring-boot.version}</version>
