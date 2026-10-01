@@ -64,3 +64,19 @@ docker compose -f deployment/docker/docker-compose.yml --env-file deployment/doc
 docker volume rm docker_keycloak_data
 docker compose -f deployment/docker/docker-compose.yml --env-file deployment/docker/.env up -d keycloak
 ```
+
+## Run the whole platform with Docker Compose
+
+`deployment/docker/docker-compose.yml` runs the infrastructure **and** the eight applications (NFR-08). Images are built from each module's multi-stage Dockerfile (non-root user `app`, healthcheck).
+
+```sh
+cp deployment/docker/.env.example deployment/docker/.env   # then replace every CHANGE_ME value
+docker compose -f deployment/docker/docker-compose.yml --env-file deployment/docker/.env up -d --build --wait
+```
+
+- Only the Gateway is published for API traffic: `http://localhost:8080`. Product, order, payment, inventory, notification, Config Server, and Eureka have no host port (ADD §7). Infrastructure keeps its host ports for development tools.
+- Containers reach each other by service name (`postgres`, `kafka:29092`, `redis`, `keycloak:8180`, `config-server`, `eureka-server`).
+- Keycloak runs with `KC_HOSTNAME=http://localhost:8180`, so every token has the issuer `http://localhost:8180/realms/ecommerce-platform` whichever address fetched it. Services validate that issuer and load signing keys from `KEYCLOAK_JWK_SET_URI` (`http://keycloak:8180/...` in Compose); the Gateway and order-service fetch tokens from `KEYCLOAK_TOKEN_URI`.
+- Demo switches in `.env`: `PAYMENT_FAILURE_RATE=1.0` (every charge declines → compensation), `NOTIFICATION_FAIL=true` (every notification fails → `order-events.DLT`).
+- `scripts/verify-l0.sh` checks Config Server and Eureka on the host ports used when they run with `mvn spring-boot:run`; in the full Compose mode use `docker compose ps`, which shows every container's health.
+
