@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+eureka:
+  client:
+    enabled: false
+notification:
+  retry:
+    attempts: 4
+    delay-ms: 200

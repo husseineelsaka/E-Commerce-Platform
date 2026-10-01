@@ -5,6 +5,16 @@ spring:
     name: notification-service
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 eureka:
   client:
     service-url:
@@ -14,3 +24,11 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+notification:
+  retry:
+    # 4 attempts in total (1 + 3 retries), 1 s then doubling, before the message is parked on order-events.DLT.
+    attempts: 4
+    delay-ms: 1000
+  simulation:
+    # Test switch: when true every send fails, to demonstrate retries and the DLT.
+    fail: ${NOTIFICATION_FAIL:false}
