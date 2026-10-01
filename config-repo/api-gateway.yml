@@ -1,1 +1,9 @@
-# api-gateway configuration is extended when its owning layer adds behavior.
+gateway:
+  rate-limit:
+    anonymous:
+      replenish-rate: 100
+      burst-capacity: 200
+    signed-in:
+      replenish-rate: 20
+      burst-capacity: 40
+    trusted-proxies: []
