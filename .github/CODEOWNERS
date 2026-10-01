@@ -1,2 +1,33 @@
-# Replace this placeholder with the actual team GitHub handle before protecting main.
-* @team-1-placeholder
+# Owners follow docs/TEAM-CHARTER.md: the primary owner, then their backup.
+# GitHub requests every listed owner as a reviewer; the PR author's own approval does not count,
+# so the backup can approve the owner's PRs. The last matching rule wins.
+
+*                               @husseineelsaka @5alafawyyy
+
+# Platform and infrastructure — Hussein, backup Ahmed Khalaf
+/platform/config-server/        @husseineelsaka @5alafawyyy
+/platform/eureka-server/        @husseineelsaka @5alafawyyy
+/config-repo/                   @husseineelsaka @5alafawyyy
+/deployment/                    @husseineelsaka @5alafawyyy
+/.github/                       @husseineelsaka @5alafawyyy
+/k6/                            @husseineelsaka @5alafawyyy
+/scripts/                       @husseineelsaka @5alafawyyy
+/pom.xml                        @husseineelsaka @5alafawyyy
+
+# Gateway — security: Sahar (backup Ahmed Qamar); rate limiting: Ahmed Khalaf
+/platform/api-gateway/          @SaherAttia26 @AhmeddKamar @5alafawyyy
+
+# Product and notification — Ahmed Khalaf, backup Hussein
+/services/product-service/      @5alafawyyy @husseineelsaka
+/services/notification-service/ @5alafawyyy @husseineelsaka
+
+# Order and the Saga — Sahar, backup Ahmed Qamar
+/services/order-service/        @SaherAttia26 @AhmeddKamar
+
+# Inventory, payment, review — Ahmed Qamar, backup Sahar
+/services/inventory-service/    @AhmeddKamar @SaherAttia26
+/services/payment-service/      @AhmeddKamar @SaherAttia26
+/services/review-service/       @AhmeddKamar @SaherAttia26
+
+# Shared documents — the whole team
+/docs/                          @husseineelsaka @5alafawyyy @AhmeddKamar @SaherAttia26
