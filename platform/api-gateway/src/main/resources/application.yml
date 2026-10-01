@@ -24,6 +24,11 @@ spring:
     gateway:
       server:
         webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@clientRateLimiter}"
+                key-resolver: "#{@clientKeyResolver}"
           routes:
             - id: product-reads
               uri: ${PRODUCT_SERVICE_URI:lb://product-service}
@@ -49,6 +54,19 @@ spring:
               predicates:
                 - Method=GET,PUT
                 - Path=/api/v1/inventory/{productId}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+gateway:
+  rate-limit:
+    anonymous:
+      replenish-rate: 100
+      burst-capacity: 200
+    signed-in:
+      replenish-rate: 20
+      burst-capacity: 40
+    trusted-proxies: []
 eureka:
   client:
     service-url:

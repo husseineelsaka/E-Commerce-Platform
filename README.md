@@ -53,6 +53,10 @@ TOKEN="$(curl --fail-with-body -sS -X POST 'http://localhost:8180/realms/ecommer
 curl -i -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/products
 ```
 
+Every Gateway route uses a Redis token bucket. Anonymous clients are keyed by IP (100 requests/s, burst 200); signed-in clients are keyed by JWT subject (20 requests/s, burst 40). A depleted bucket returns `429` for that client. Set `REDIS_HOST` (default `localhost`) and `REDIS_PORT` (default `6379`) for the Gateway. The rates are `gateway.rate-limit.anonymous.*` and `gateway.rate-limit.signed-in.*` in `config-repo/api-gateway.yml`, with the same fallback values in `platform/api-gateway/src/main/resources/application.yml`. The Gateway fails open if Redis is unavailable, so rate limits are temporarily unenforced during an outage.
+
+Set `gateway.rate-limit.trusted-proxies` to a list of direct ingress IP addresses or CIDRs when an ingress sends `X-Forwarded-For`; it is empty by default. Only a direct peer on that list can supply a forwarded client IP. The resolver uses the rightmost forwarded address (one trusted ingress hop). Configure ingress to append the peer address to `X-Forwarded-For`.
+
 After changing `deployment/docker/keycloak/realm-export.json`, recreate the local Keycloak container and its data volume. Keycloak imports the realm only on first start:
 
 ```sh
