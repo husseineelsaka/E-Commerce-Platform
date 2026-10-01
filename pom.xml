@@ -64,6 +64,8 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId><artifactId>maven-failsafe-plugin</artifactId>
+        <!-- Spring Boot repackages the jar before integration tests run; load classes from target/classes instead. -->
+        <configuration><classesDirectory>${project.build.outputDirectory}</classesDirectory></configuration>
         <executions>
           <execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution>
         </executions>
