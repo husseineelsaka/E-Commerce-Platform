@@ -14,6 +14,8 @@ secretName: ecommerce-secrets
 secretEnv:
   - PRODUCT_DB_PASSWORD
 env:
+  ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"
   CONFIG_SERVER_URL: "http://config-server:8888"
   EUREKA_URL: "http://eureka-server:8761/eureka/"
   EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"

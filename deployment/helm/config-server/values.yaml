@@ -12,7 +12,9 @@ service:
 # Kubernetes Secret created from deployment/docker/.env (never committed); see deployment/kubernetes/README.md.
 secretName: ecommerce-secrets
 secretEnv: []
-env: {}
+env:
+  ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"
 resources:
   requests: {cpu: 100m, memory: 384Mi}
   limits: {memory: 768Mi}

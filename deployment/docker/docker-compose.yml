@@ -8,6 +8,9 @@ x-app-env: &app-env
   KEYCLOAK_TOKEN_URI: http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/token
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   REDIS_HOST: redis
+  ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+  # NFR-06: JSON (ECS) console logs; every line carries trace.id and span.id.
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
   PRODUCT_DB_HOST: postgres
   INVENTORY_DB_HOST: postgres
   PAYMENT_DB_HOST: postgres
