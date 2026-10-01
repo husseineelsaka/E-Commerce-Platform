@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Test gate: unit, web, and Testcontainers integration tests (Docker is available on GitHub runners).
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B verify
+
+  # One image per application, built from the repository root with its multi-stage Dockerfile.
+  # Pull requests only build (Dockerfiles stay valid); pushes to main also push to GHCR, tagged with the commit SHA.
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - {name: config-server, dir: platform/config-server}
+          - {name: eureka-server, dir: platform/eureka-server}
+          - {name: api-gateway, dir: platform/api-gateway}
+          - {name: product-service, dir: services/product-service}
+          - {name: order-service, dir: services/order-service}
+          - {name: payment-service, dir: services/payment-service}
+          - {name: inventory-service, dir: services/inventory-service}
+          - {name: notification-service, dir: services/notification-service}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.app.dir }}/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.app.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.app.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app.name }}
