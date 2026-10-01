@@ -7,7 +7,19 @@ management:
     web:
       exposure:
         include: health,info,prometheus
-# L5 wires tracing; this address reserves the shared Zipkin endpoint.
+  # NFR-06: every request and every Kafka message is traced (W3C traceparent) and reported to Zipkin.
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
   zipkin:
     tracing:
       endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+spring:
+  kafka:
+    # Kafka producer and consumer spans join the trace; the traceparent travels in the record headers.
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
