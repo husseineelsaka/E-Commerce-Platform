@@ -1,3 +1,66 @@
+x-app-env: &app-env
+  # How every application finds the platform inside the Compose network.
+  CONFIG_SERVER_URL: http://config-server:8888
+  EUREKA_URL: http://eureka-server:8761/eureka/
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+  KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/ecommerce-platform
+  KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/certs
+  KEYCLOAK_TOKEN_URI: http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/token
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  REDIS_HOST: redis
+  PRODUCT_DB_HOST: postgres
+  INVENTORY_DB_HOST: postgres
+  PAYMENT_DB_HOST: postgres
+  ORDER_DB_HOST: postgres
+x-app-health-8888: &app-health-8888
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8888/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8761: &app-health-8761
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8761/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8090: &app-health-8090
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8090/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8081: &app-health-8081
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8081/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8082: &app-health-8082
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8082/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8083: &app-health-8083
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8083/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8084: &app-health-8084
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8084/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+x-app-health-8085: &app-health-8085
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8085/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
+
 services:
   postgres:
     image: postgres:16.9
@@ -36,8 +99,11 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      # PLAINTEXT for clients on the host (localhost:9092); INTERNAL for containers and kind pods (kafka:29092).
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     ports: ["9092:9092"]
     volumes: [kafka_data:/var/lib/kafka/data]
@@ -62,6 +128,9 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
       KC_HEALTH_ENABLED: "true"
+      # One public issuer for every token, whichever address fetched it (host: localhost, containers: keycloak).
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       ADMIN_USER_PASSWORD: ${ADMIN_USER_PASSWORD:?set ADMIN_USER_PASSWORD}
       CUSTOMER_USER_PASSWORD: ${CUSTOMER_USER_PASSWORD:?set CUSTOMER_USER_PASSWORD}
       GATEWAY_CLIENT_SECRET: ${GATEWAY_CLIENT_SECRET:?set GATEWAY_CLIENT_SECRET}
@@ -110,6 +179,78 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+
+  # ---------------------------------------------------------------- platform applications (NFR-08)
+  # Only the Gateway publishes a port: business services stay on the Compose network (PLAN, ADD §7).
+  config-server:
+    image: ecommerce/config-server:local
+    build: {context: ../.., dockerfile: platform/config-server/Dockerfile}
+    environment: *app-env
+    healthcheck: *app-health-8888
+  eureka-server:
+    image: ecommerce/eureka-server:local
+    build: {context: ../.., dockerfile: platform/eureka-server/Dockerfile}
+    environment: *app-env
+    depends_on: {config-server: {condition: service_healthy}}
+    healthcheck: *app-health-8761
+  api-gateway:
+    image: ecommerce/api-gateway:local
+    build: {context: ../.., dockerfile: platform/api-gateway/Dockerfile}
+    environment:
+      <<: *app-env
+      GATEWAY_CLIENT_SECRET: ${GATEWAY_CLIENT_SECRET}
+    ports: ["8080:8080"]
+    depends_on: &platform-ready
+      eureka-server: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck: *app-health-8090
+  product-service:
+    image: ecommerce/product-service:local
+    build: {context: ../.., dockerfile: services/product-service/Dockerfile}
+    environment:
+      <<: *app-env
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+    depends_on: *platform-ready
+    healthcheck: *app-health-8081
+  inventory-service:
+    image: ecommerce/inventory-service:local
+    build: {context: ../.., dockerfile: services/inventory-service/Dockerfile}
+    environment:
+      <<: *app-env
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+    depends_on: &saga-ready
+      eureka-server: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    healthcheck: *app-health-8084
+  payment-service:
+    image: ecommerce/payment-service:local
+    build: {context: ../.., dockerfile: services/payment-service/Dockerfile}
+    environment:
+      <<: *app-env
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD}
+      PAYMENT_FAILURE_RATE: ${PAYMENT_FAILURE_RATE:-0.0}
+    depends_on: *saga-ready
+    healthcheck: *app-health-8083
+  order-service:
+    image: ecommerce/order-service:local
+    build: {context: ../.., dockerfile: services/order-service/Dockerfile}
+    environment:
+      <<: *app-env
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      ORDER_CLIENT_SECRET: ${ORDER_CLIENT_SECRET}
+    depends_on: *saga-ready
+    healthcheck: *app-health-8082
+  notification-service:
+    image: ecommerce/notification-service:local
+    build: {context: ../.., dockerfile: services/notification-service/Dockerfile}
+    environment:
+      <<: *app-env
+      NOTIFICATION_FAIL: ${NOTIFICATION_FAIL:-false}
+    depends_on: *saga-ready
+    healthcheck: *app-health-8085
+
 volumes:
   postgres_data:
   zookeeper_data:

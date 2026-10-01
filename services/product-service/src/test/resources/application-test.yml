@@ -14,6 +14,7 @@ spring:
         jwt:
           # Unreachable on purpose: tests must not depend on a running Keycloak (CI has none).
           issuer-uri: http://localhost:1/realms/ecommerce-platform
+          jwk-set-uri: http://localhost:1/realms/ecommerce-platform/protocol/openid-connect/certs
 eureka:
   client:
     enabled: false
