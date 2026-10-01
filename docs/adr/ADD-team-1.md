@@ -190,6 +190,7 @@ If the Architecture Review at S25 raises risks that differ from F1 and F2, we ad
 | Product writes, inventory admin | `gateway-service` | ADMIN |
 | Order endpoints, review submit | `gateway-service` | CUSTOMER (ownership checked in the service) |
 | Inventory stock check | `order-service` | none |
+| Product read `GET /api/v1/products/{id}` (price lookup, §3.4) | `order-service` | none |
 | Payment create / refund | `payment-operator` | none |
 | Actuator `/actuator/health`, `/actuator/prometheus` | not routed through the Gateway; reachable only inside the service network (Compose network, cluster) | none |
 | Anything else | denied | — |
