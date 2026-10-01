@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 900" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker>
+  </defs>
+  <rect width="1120" height="900" fill="#fff"/>
+  <text x="560" y="30" text-anchor="middle" font-size="21" font-weight="600" fill="#1f2937">Drawing 2 — Place-order sequence (Team 1)</text>
+
+  <!-- lifeline heads -->
+  <g font-weight="600" text-anchor="middle" fill="#1f2937">
+    <rect x="30" y="66" width="100" height="32" rx="6" fill="#f3f4f6" stroke="#6b7280"/><text x="80" y="87">Customer</text>
+    <rect x="190" y="66" width="100" height="32" rx="6" fill="#eef4fb" stroke="#336791"/><text x="240" y="87">Gateway</text>
+    <rect x="350" y="66" width="100" height="32" rx="6" fill="#eef4fb" stroke="#336791"/><text x="400" y="87">Order</text>
+    <rect x="510" y="66" width="100" height="32" rx="6" fill="#eef4fb" stroke="#336791"/><text x="560" y="87">Inventory</text>
+    <rect x="670" y="66" width="100" height="32" rx="6" fill="#fff7e6" stroke="#b45309"/><text x="720" y="87">Kafka</text>
+    <rect x="830" y="66" width="100" height="32" rx="6" fill="#eef4fb" stroke="#336791"/><text x="880" y="87">Payment</text>
+    <rect x="990" y="66" width="100" height="32" rx="6" fill="#eef4fb" stroke="#336791"/><text x="1040" y="87">Notification</text>
+  </g>
+  <g stroke="#9ca3af" stroke-dasharray="4 4">
+    <line x1="80" y1="98" x2="80" y2="880"/><line x1="240" y1="98" x2="240" y2="880"/><line x1="400" y1="98" x2="400" y2="880"/>
+    <line x1="560" y1="98" x2="560" y2="880"/><line x1="720" y1="98" x2="720" y2="880"/><line x1="880" y1="98" x2="880" y2="880"/><line x1="1040" y1="98" x2="1040" y2="880"/>
+  </g>
+
+  <!-- happy path -->
+  <g stroke="#1f2937" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <line x1="80" y1="130" x2="238" y2="130"/>
+    <line x1="240" y1="164" x2="398" y2="164"/>
+    <line x1="400" y1="198" x2="558" y2="198"/>
+    <line x1="560" y1="232" x2="402" y2="232" stroke-dasharray="6 4"/>
+    <path d="M400,262 h40 v22 h-38"/>
+    <line x1="400" y1="320" x2="82" y2="320" stroke-dasharray="6 4"/>
+    <line x1="400" y1="354" x2="718" y2="354"/>
+    <line x1="720" y1="388" x2="562" y2="388"/>
+    <line x1="560" y1="422" x2="718" y2="422"/>
+    <line x1="720" y1="456" x2="878" y2="456"/>
+    <line x1="880" y1="490" x2="722" y2="490"/>
+    <line x1="720" y1="524" x2="402" y2="524"/>
+    <line x1="400" y1="558" x2="718" y2="558"/>
+    <line x1="720" y1="592" x2="1038" y2="592"/>
+  </g>
+  <g fill="#1f2937">
+    <text x="88" y="124">1  POST /api/v1/orders + JWT</text>
+    <text x="248" y="158">2  JWT valid → X-User-Id + service token</text>
+    <text x="408" y="192">3  Feign stock check (CB/Retry/Bulkhead/TL)</text>
+    <text x="410" y="226">4  {available: true}</text>
+    <text x="448" y="278">5  save PENDING + outbox row (one transaction)</text>
+    <text x="96" y="314">6  201 {orderId, status: PENDING}</text>
+    <text x="408" y="348">7  outbox poller → OrderPlaced</text>
+    <text x="570" y="382">8  OrderPlaced → reserve stock</text>
+    <text x="568" y="416">9  InventoryReserved</text>
+    <text x="728" y="450">10  InventoryReserved → charge once</text>
+    <text x="730" y="484">11  PaymentCompleted</text>
+    <text x="410" y="518">12  PaymentCompleted → order CONFIRMED</text>
+    <text x="408" y="552">13  OrderConfirmed</text>
+    <text x="728" y="586">14  OrderConfirmed → send confirmation</text>
+  </g>
+  <text x="96" y="344" font-size="12" fill="#6b7280">client polls GET /orders/{id}</text>
+  <text x="408" y="244" font-size="12" fill="#6b7280">(+ price lookup to Product, §3.4)</text>
+
+  <!-- failure path -->
+  <line x1="20" y1="622" x2="1100" y2="622" stroke="#c0392b" stroke-dasharray="8 5"/>
+  <text x="30" y="646" font-weight="600" fill="#c0392b">Failure path — payment fails after bounded retries (instead of step 11)</text>
+  <g stroke="#c0392b" stroke-width="1.5" fill="none" marker-end="url(#r)">
+    <line x1="880" y1="684" x2="722" y2="684"/>
+    <line x1="720" y1="718" x2="562" y2="718"/>
+    <line x1="560" y1="752" x2="718" y2="752"/>
+    <line x1="720" y1="786" x2="402" y2="786"/>
+    <line x1="400" y1="820" x2="718" y2="820"/>
+    <line x1="720" y1="854" x2="1038" y2="854"/>
+  </g>
+  <g fill="#c0392b">
+    <text x="730" y="678">F1  PaymentFailed</text>
+    <text x="570" y="712">F2  PaymentFailed → release stock</text>
+    <text x="568" y="746">F3  InventoryReleased</text>
+    <text x="410" y="780">F4  PaymentFailed → order CANCELLED</text>
+    <text x="408" y="814">F5  OrderCancelled</text>
+    <text x="728" y="848">F6  OrderCancelled → send cancel notice</text>
+  </g>
+</svg>
