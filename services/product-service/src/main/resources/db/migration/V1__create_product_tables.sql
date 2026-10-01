@@ -1,0 +1,12 @@
+CREATE TABLE category (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE product (
+    id BIGSERIAL PRIMARY KEY,
+    category_id BIGINT NOT NULL REFERENCES category(id),
+    name VARCHAR(255) NOT NULL,
+    price NUMERIC(12, 2) NOT NULL CHECK (price > 0),
+    version BIGINT NOT NULL DEFAULT 0
+);

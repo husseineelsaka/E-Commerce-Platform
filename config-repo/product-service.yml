@@ -1,1 +1,14 @@
-# product-service configuration is extended when its owning layer adds behavior.
+spring:
+  datasource:
+    url: jdbc:postgresql://${PRODUCT_DB_HOST:localhost}:5432/product_db
+    username: product_owner
+    password: ${PRODUCT_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/ecommerce-platform}
