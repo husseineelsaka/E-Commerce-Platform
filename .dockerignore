@@ -1,0 +1,6 @@
+**/target
+.git
+.idea
+.vscode
+deployment/docker/.env
+**/*.log
