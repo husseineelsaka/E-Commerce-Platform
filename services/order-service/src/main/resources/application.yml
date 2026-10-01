@@ -14,3 +14,47 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+# Resilience for the synchronous Product and Inventory calls (handbook default: CB, Retry, Bulkhead, TimeLimiter).
+resilience4j:
+  circuitbreaker:
+    instances:
+      product:
+        sliding-window-size: 10
+        # An unknown product is a client error, not a failing dependency.
+        ignore-exceptions: feign.FeignException$NotFound
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      inventory:
+        sliding-window-size: 10
+        # An unknown product is a client error, not a failing dependency.
+        ignore-exceptions: feign.FeignException$NotFound
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+  retry:
+    instances:
+      product:
+        max-attempts: 2
+        ignore-exceptions: feign.FeignException$NotFound
+        wait-duration: 50ms
+      inventory:
+        max-attempts: 2
+        ignore-exceptions: feign.FeignException$NotFound
+        wait-duration: 50ms
+  bulkhead:
+    instances:
+      product:
+        max-concurrent-calls: 20
+        max-wait-duration: 0
+      inventory:
+        max-concurrent-calls: 20
+        max-wait-duration: 0
+  timelimiter:
+    instances:
+      product:
+        timeout-duration: 500ms
+        cancel-running-future: true
+      inventory:
+        timeout-duration: 500ms
+        cancel-running-future: true
