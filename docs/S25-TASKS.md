@@ -6,7 +6,7 @@ Each member finishes their part on their own branch, commits from their own GitH
 
 1. **Review and own ADD §5 Communication and §6 Failure modes** in `docs/adr/ADD-team-1.md`. Check every decision matches what we agreed. Add any risk raised at the Architecture Review to §6.
    Commit: `capstone-L0: review-add-communication-and-failure-modes`
-2. **Draw drawing 2 — main flow sequence** (paper, photograph, save as `docs/architecture/02-order-flow-sequence.jpg`). It must show:
+2. **Draw drawing 2 — main flow sequence** (SVG, save as `docs/architecture/02-order-flow-sequence.svg`). It must show:
    - Columns: Customer, Gateway, Order, Inventory, Kafka, Payment, Notification.
    - Happy path: POST order → Gateway validates JWT → Order Feign stock check → Order saves `PENDING` + outbox row → returns orderId → `OrderPlaced` → Inventory reserves → `InventoryReserved` → Payment charges → `PaymentCompleted` → Order `CONFIRMED` → `OrderConfirmed` → Notification.
    - One failure path (draw it in a different colour): `PaymentFailed` → Inventory releases stock → `InventoryReleased` → Order `CANCELLED` → `OrderCancelled` → Notification sends cancel notice.
@@ -17,7 +17,7 @@ Each member finishes their part on their own branch, commits from their own GitH
 
 1. **Review and own ADD §1 Problem statement and §2 Bounded context.** Confirm the B1 scope and the "no product check on submit" decision.
    Commit: `capstone-L0: review-add-problem-and-bounded-context`
-2. **Draw drawing 1 — B1 service boundaries** (save as `docs/architecture/01-service-boundaries.jpg`). It must show:
+2. **Draw drawing 1 — B1 service boundaries** (SVG, save as `docs/architecture/01-service-boundaries.svg`). It must show:
    - A box per service: Gateway, Product, Order, Inventory, Payment, Notification, and the new Review service (highlighted).
    - Review's own database `review_db`; Product's `product_rating` table.
    - Arrows: Customer → Gateway → Review (submit / read reviews); Review → Kafka `review-events` → Product (`ReviewSubmitted`).
@@ -29,7 +29,7 @@ Each member finishes their part on their own branch, commits from their own GitH
 
 1. **Review and own ADD §3 API contract + events and §4 Data model.** Check every path, status code, event field, and table against the handbook.
    Commit: `capstone-L0: review-add-api-and-data-model`
-2. **Draw drawing 3 — where data lives** (save as `docs/architecture/03-data-locations.jpg`). It must show one PostgreSQL box with five databases inside, and the tables in each:
+2. **Draw drawing 3 — where data lives** (SVG, save as `docs/architecture/03-data-locations.svg`). It must show one PostgreSQL box with five databases inside, and the tables in each:
    - `product_db`: category, product, product_rating, processed_event
    - `order_db`: orders, order_item, outbox_event, processed_event
    - `inventory_db`: stock, reservation, outbox_event, processed_event
