@@ -11,8 +11,8 @@
 | S5 | L1 | Public endpoint rate limiting | Ahmed Khalaf | 3h |
 | S6 | L2 | Internal stock check and admin stock view/adjust | Ahmed Qamar | 4h |
 | S7 | L2 | Idempotent payment and refund | Ahmed Qamar | 4h |
-| S8 | L2 | Place order with synchronous stock check | Sahar Attia | 4h |
-| S9 | L2 | Customer reads own orders | Sahar Attia | 2h |
+| S8 | L2 | Place order and read own orders | Sahar Attia | 4h |
+| S9 | L3 | Payment from the Saga with retry and circuit breaker | Ahmed Qamar | 4h |
 | S10 | L3 | Stock reservation and release from events | Ahmed Qamar | 4h |
 | S11 | L3 | Saga outcomes and outbox publisher in Order | Sahar Attia | 4h |
 | S12 | L3 | Notifications with retry and Dead Letter Topic | Ahmed Khalaf | 3h |
@@ -20,7 +20,7 @@
 | S14 | L5 | Cross-hop trace and k6 product read test | Hussein Elsaka | 4h |
 | S15 | L6 | Submit and read product reviews (B1 Core) | Ahmed Qamar | 4h |
 
-**Per member:** Ahmed Khalaf 4 stories · Ahmed Qamar 4 · Sahar Attia 4 · Hussein Elsaka 3 (plus L0 platform work already in place and the remaining L4/L5 stories split out later).
+**Per member:** Ahmed Khalaf 4 stories · Ahmed Qamar 5 · Sahar Attia 3 · Hussein Elsaka 3 (plus L0 platform work already in place and the remaining L4/L5 stories split out later).
 
 ---
 
@@ -62,7 +62,7 @@ As a shopper, I want product pages to load fast and always show the latest data 
 
 As the platform owner, I want each client limited on public endpoints so that one client cannot slow the shop for everyone.
 
-**Definition of Done:** a burst beyond the configured limit from one client returns `429` while a second client still gets `200`, checked once for two signed-in users (keyed by JWT subject) and once for two anonymous IPs. Test `RateLimitIT.limitsOneClientOnly` passes. Limits are recorded in ADD §7.
+**Definition of Done:** a burst beyond the configured limit from one client returns `429` while a second client still gets `200`, checked once for two signed-in users (keyed by JWT subject) and once for two anonymous IPs. A forged `X-Forwarded-For` header from outside the trusted ingress does not change the key. Test `RateLimitIT.limitsOneClientOnly` passes. Limits are recorded in ADD §7.
 
 ## S6 — Internal stock check and admin stock view/adjust
 
@@ -80,21 +80,21 @@ As the business, I want each order charged at most once even when a request is r
 
 **Definition of Done:** two `POST /api/v1/payments` calls with the same `Idempotency-Key` and a `payment-operator` token return the same payment ID and create one row in `payments`. Test `PaymentServiceTest.sameKeyChargesOnce` passes. An `order-service` token on this endpoint returns `403`.
 
-## S8 — Place order with synchronous stock check
+## S8 — Place order and read own orders
 
-**Layer:** L2 · **Owner:** Sahar Attia · **Estimate:** 4h · **FR:** FR-05, FR-06
+**Layer:** L2 · **Owner:** Sahar Attia · **Estimate:** 4h · **FR:** FR-05, FR-06, FR-10
 
-As a customer, I want my order accepted immediately with an order ID and status `PENDING`, or rejected at once if stock is missing, so that I know where I stand.
+As a customer, I want my order accepted immediately with an order ID and status `PENDING`, or rejected at once if stock is missing, and I want to see only my own orders, so that I know where I stand and my purchases stay private.
 
-**Definition of Done:** `POST /api/v1/orders` returns `201` with `orderId` and `PENDING` when stock exists; returns `409` when it does not, and no outbox row is written. The order and its outbox row are saved in one transaction (`OrderServiceIT.savesOrderAndOutboxTogether`). With Inventory stopped, the call fails fast through the Resilience4j circuit breaker (`OrderServiceTest.inventoryDownRejectsQuickly`).
+**Definition of Done:** `POST /api/v1/orders` returns `201` with `orderId` and `PENDING` when stock exists; returns `409` when it does not, and no outbox row is written. Unit prices come from Product (`GET /api/v1/products/{id}` with the `order-service` token, ADD §3.4); with Product or Inventory stopped, the call fails fast with `503` through the Resilience4j circuit breaker (`OrderServiceTest.inventoryDownRejectsQuickly`). The order and its outbox row are saved in one transaction (`OrderServiceIT.savesOrderAndOutboxTogether`). `GET /api/v1/orders` returns only the caller's orders, and `GET /api/v1/orders/{id}` for another customer's order returns `404` (`OrderControllerTest.cannotReadOtherCustomersOrder`).
 
-## S9 — Customer reads own orders
+## S9 — Payment from the Saga with retry and circuit breaker
 
-**Layer:** L2 · **Owner:** Sahar Attia · **Estimate:** 2h · **FR:** FR-10
+**Layer:** L3 · **Owner:** Ahmed Qamar · **Estimate:** 4h · **FR:** FR-08, FR-09, NFR-01
 
-As a customer, I want to see the status of my orders and only my orders so that my purchases stay private.
+As the business, I want each reserved order charged exactly once, with a failed payment ending in compensation, so that customers are never double-charged and stock is never kept for a failed payment.
 
-**Definition of Done:** `GET /api/v1/orders` returns only the caller's orders. `GET /api/v1/orders/{id}` for another customer's order returns `404`. Test `OrderControllerTest.cannotReadOtherCustomersOrder` passes.
+**Definition of Done:** `InventoryReserved` produces exactly one `PaymentCompleted` or `PaymentFailed` through Payment's outbox, with the payment row keyed by `orderId` (ADD §3.4). The simulated charge runs inside Resilience4j Retry and CircuitBreaker; with the failure-rate switch at 100%, retries are exhausted and `PaymentFailed` is published. Delivering `InventoryReserved` twice charges once (`PaymentEventListenerIT.duplicateInventoryReservedChargesOnce`).
 
 ## S10 — Stock reservation and release from events
 
@@ -118,7 +118,7 @@ As a customer, I want my order to end as `CONFIRMED` or `CANCELLED` and never be
 
 As a customer, I want a confirmation when my order is confirmed and a notice when it is cancelled, so that I do not have to keep checking.
 
-**Definition of Done:** `OrderConfirmed` and `OrderCancelled` each produce one log-based notification. A forced send failure is retried by `@RetryableTopic`, then parked on the `.DLT` topic (`kafka-console-consumer` on the DLT shows the message). Test `NotificationListenerIT.exhaustedRetriesGoToDlt` passes.
+**Definition of Done:** `OrderConfirmed` and `OrderCancelled` each produce one log-based notification. A forced send failure is retried by `@RetryableTopic` (configured with `dltTopicSuffix = ".DLT"`, ADD §6 F5), then parked on the `order-events.DLT` topic (`kafka-console-consumer` on the DLT shows the message). Test `NotificationListenerIT.exhaustedRetriesGoToDlt` passes.
 
 ## S13 — CI image build and first Helm deploy to kind
 
@@ -142,4 +142,4 @@ As a maintainer, I want one trace across HTTP and Kafka and a measured read late
 
 As a shopper, I want to submit one rating and review per product and see other shoppers' reviews, so that I can decide with social proof.
 
-**Definition of Done:** `POST /api/v1/products/{productId}/reviews` with the customer token returns `201`; a second review by the same customer for the same product returns `409`. `GET /api/v1/products/{productId}/reviews?page=0&size=10` works without a token. Product detail shows `averageRating` and `reviewCount`, updated through `ReviewSubmitted`; delivering the same event twice changes the count once (`ProductRatingProjectionIT.duplicateEventCountedOnce`).
+**Definition of Done:** `POST /api/v1/products/{productId}/reviews` with the customer token returns `201`; a second review by the same customer for the same product returns `409`. `GET /api/v1/products/{productId}/reviews?page=0&size=10` works without a token. Product detail shows `averageRating` and `reviewCount`, updated through `ReviewSubmitted`; delivering the same event twice changes the count once (`ProductRatingProjectionIT.duplicateEventCountedOnce`). An event for an unknown product is recorded in `processed_event` and changes nothing (`ProductRatingProjectionIT.unknownProductIsSkipped`, ADD §2).

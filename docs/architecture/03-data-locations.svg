@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+  <rect width="1000" height="640" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="22" font-weight="600" fill="#1f2937">Drawing 3 — Where data lives (Team 1)</text>
+
+  <!-- PostgreSQL instance -->
+  <rect x="20" y="80" width="740" height="460" rx="12" fill="#eef4fb" stroke="#336791" stroke-width="2"/>
+  <text x="36" y="106" font-size="17" font-weight="600" fill="#336791">PostgreSQL :5432 — one instance, one database + owner role per service</text>
+
+  <g font-size="13" fill="#1f2937">
+    <!-- product_db -->
+    <rect x="40" y="124" width="220" height="180" rx="8" fill="#fff" stroke="#336791"/>
+    <text x="52" y="146" font-weight="600">product_db</text>
+    <text x="52" y="164" fill="#6b7280">owner: product_owner</text>
+    <text x="52" y="190">• category</text>
+    <text x="52" y="210">• product</text>
+    <text x="52" y="230">• product_rating  (B1, L6)</text>
+    <text x="52" y="250">• processed_event (L6)</text>
+    <text x="52" y="284" fill="#6b7280">used by product-service</text>
+
+    <!-- order_db -->
+    <rect x="280" y="124" width="220" height="180" rx="8" fill="#fff" stroke="#336791"/>
+    <text x="292" y="146" font-weight="600">order_db</text>
+    <text x="292" y="164" fill="#6b7280">owner: order_owner</text>
+    <text x="292" y="190">• orders</text>
+    <text x="292" y="210">• order_item</text>
+    <text x="292" y="230">• outbox_event</text>
+    <text x="292" y="250">• processed_event</text>
+    <text x="292" y="284" fill="#6b7280">used by order-service</text>
+
+    <!-- inventory_db -->
+    <rect x="520" y="124" width="220" height="180" rx="8" fill="#fff" stroke="#336791"/>
+    <text x="532" y="146" font-weight="600">inventory_db</text>
+    <text x="532" y="164" fill="#6b7280">owner: inventory_owner</text>
+    <text x="532" y="190">• stock</text>
+    <text x="532" y="210">• reservation</text>
+    <text x="532" y="230">• outbox_event</text>
+    <text x="532" y="250">• processed_event</text>
+    <text x="532" y="284" fill="#6b7280">used by inventory-service</text>
+
+    <!-- payment_db -->
+    <rect x="160" y="330" width="220" height="180" rx="8" fill="#fff" stroke="#336791"/>
+    <text x="172" y="352" font-weight="600">payment_db</text>
+    <text x="172" y="370" fill="#6b7280">owner: payment_owner</text>
+    <text x="172" y="396">• payment</text>
+    <text x="172" y="416">• outbox_event</text>
+    <text x="172" y="436">• processed_event</text>
+    <text x="172" y="490" fill="#6b7280">used by payment-service</text>
+
+    <!-- review_db -->
+    <rect x="400" y="330" width="220" height="180" rx="8" fill="#fff" stroke="#b45309" stroke-dasharray="6 4" stroke-width="1.5"/>
+    <text x="412" y="352" font-weight="600">review_db  (B1, added in L6)</text>
+    <text x="412" y="370" fill="#6b7280">owner: review_owner</text>
+    <text x="412" y="396">• review</text>
+    <text x="412" y="416">• outbox_event</text>
+    <text x="412" y="490" fill="#6b7280">used by review-service</text>
+  </g>
+
+  <!-- Redis -->
+  <rect x="790" y="80" width="190" height="200" rx="12" fill="#fdf0ef" stroke="#c0392b" stroke-width="2"/>
+  <text x="806" y="106" font-size="17" font-weight="600" fill="#c0392b">Redis :6379</text>
+  <g font-size="13" fill="#1f2937">
+    <text x="806" y="138">• product cache</text>
+    <text x="818" y="156" fill="#6b7280">list + item entries,</text>
+    <text x="818" y="172" fill="#6b7280">evicted on every write</text>
+    <text x="806" y="202">• Gateway rate-limit</text>
+    <text x="818" y="220">counters</text>
+    <text x="818" y="238" fill="#6b7280">key: JWT subject or IP</text>
+  </g>
+
+  <!-- No database -->
+  <rect x="790" y="300" width="190" height="90" rx="12" fill="#f3f4f6" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="806" y="326" font-size="15" font-weight="600" fill="#374151">No database</text>
+  <text x="806" y="350" font-size="13" fill="#1f2937">notification-service</text>
+  <text x="806" y="370" font-size="13" fill="#6b7280">(Kafka consumer, DLT)</text>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#374151">
+    <rect x="20" y="562" width="960" height="60" rx="8" fill="#fafafa" stroke="#d1d5db"/>
+    <text x="36" y="586">Rule: each service reads and writes only its own database. No cross-database joins or foreign keys.</text>
+    <text x="36" y="606">Dashed box = created in L6 (B1). outbox_event = transactional outbox · processed_event = consumer dedup (idempotency).</text>
+  </g>
+</svg>

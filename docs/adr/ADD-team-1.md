@@ -27,6 +27,8 @@ Sections §5–§8 are first versions. We update them as L2–L5 produce real ev
 - The average does not drift: delivering the same `ReviewSubmitted` event twice leaves the count unchanged (tested).
 - Adding reviews keeps the platform targets: cached `GET /api/v1/products/{id}` P95 < 200 ms.
 
+The Core platform (catalogue, orders, Saga, notifications) is measured by the handbook's FR-01–FR-15 and NFR-01–NFR-10, with the test and k6 plan in §8. This section covers the problem our Bonus solves.
+
 - **DECISION:** build B1 as a new `review-service` that owns reviews, and give Product a small rating read model updated by events.
 - **OPTIONS CONSIDERED:** (a) new review-service + event projection into Product; (b) add review tables to product-service; (c) Product calls Review over Feign on every product detail read.
 - **REASON:** (a) keeps review writes away from the catalogue database and keeps product reads fast because the rating is already stored next to the product. (b) mixes two owners of data in one service. (c) adds a synchronous call to the hottest read path and makes product detail fail when Review is down.
@@ -39,15 +41,15 @@ Sections §5–§8 are first versions. We update them as L2–L5 produce real ev
 
 **review-service does not own:** products, prices, categories (Product), orders or purchases (Order), customer identity (Keycloak). It stores `productId` and `customerId` only as references.
 
-**product-service owns the rating projection:** `product_rating` (review count and rating sum per product) is Product's own read model, built from `ReviewSubmitted`. Product never reads review-service's database.
+**product-service owns the rating projection:** `product_rating` (review count and rating sum per product) is Product's own read model, built from `ReviewSubmitted`. Product never reads review-service's database. For a `productId` that Product does not have, the consumer records the `eventId` in `processed_event` and makes no rating change; it must check this explicitly, because `product_rating.product_id` is a foreign key and a blind insert would fail, retry, and end on the DLT.
 
 **Data ownership:** review-service has its own PostgreSQL database `review_db` with its own Flyway migrations. No other service connects to it.
 
-**Existing services touched:** api-gateway (new route), product-service (new consumer + two fields in product detail), Keycloak (new receiving audience for review-service), Helm/CI (new chart and pipeline).
+**Existing services and files touched:** api-gateway (new route, declared before the product route), product-service (new consumer, `product_rating` and `processed_event` migration, two fields in product detail), Keycloak realm (new receiving audience for review-service), `deployment/docker/postgres/init-databases.sh` (`review_db` and `review_owner`), `config-repo/review-service.yml`, `deployment/docker/prometheus/prometheus.yml` (scrape target on port 8086), Helm/CI/ArgoCD (new chart, pipeline, and Application).
 
 - **DECISION:** new service, separate database, references by ID only.
 - **OPTIONS CONSIDERED:** new service vs. extending product-service; validating the product exists synchronously (Feign to Product) vs. not validating in Core.
-- **REASON:** a separate service follows database-per-service and lets reviews be deployed and scaled on their own. We do not call Product on submit in Core: it would add a second sync dependency and a new service-client permission for little value, because Product's projection simply ignores events for products it does not know.
+- **REASON:** a separate service follows database-per-service and lets reviews be deployed and scaled on their own. We do not call Product on submit in Core: it would add a second sync dependency and a new service-client permission for little value, because Product's projection skips events for products it does not know (see above).
 - **TRADE-OFF:** a review can be stored for a product ID that does not exist (or was deleted). It never appears on a real product page, but it does sit in `review_db`.
 - **WHAT WOULD MAKE US REVISIT:** the verified-purchase stretch goal (needs Feign to Order with a circuit breaker), or spam reviews on fake product IDs becoming visible somewhere.
 
