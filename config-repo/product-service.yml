@@ -7,8 +7,15 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/ecommerce-platform}
+product:
+  cache:
+    ttl: ${PRODUCT_CACHE_TTL:10m}
