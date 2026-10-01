@@ -1,0 +1,31 @@
+replicas: 1
+image:
+  # CI pushes ghcr.io/<owner>/inventory-service:<commit sha>; the kind setup loads the locally built image instead.
+  repository: ghcr.io/husseineelsaka/inventory-service
+  tag: latest
+  pullPolicy: IfNotPresent
+port: 8084
+managementPort: 8084
+service:
+  type: ClusterIP
+  nodePort: null
+# Kubernetes Secret created from deployment/docker/.env (never committed); see deployment/kubernetes/README.md.
+secretName: ecommerce-secrets
+secretEnv:
+  - INVENTORY_DB_PASSWORD
+env:
+  CONFIG_SERVER_URL: "http://config-server:8888"
+  EUREKA_URL: "http://eureka-server:8761/eureka/"
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+  KEYCLOAK_ISSUER_URI: "http://localhost:8180/realms/ecommerce-platform"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/certs"
+  KEYCLOAK_TOKEN_URI: "http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/token"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+  REDIS_HOST: "redis"
+  PRODUCT_DB_HOST: "postgres"
+  ORDER_DB_HOST: "postgres"
+  PAYMENT_DB_HOST: "postgres"
+  INVENTORY_DB_HOST: "postgres"
+resources:
+  requests: {cpu: 100m, memory: 384Mi}
+  limits: {memory: 768Mi}
