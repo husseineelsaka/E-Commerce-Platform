@@ -1,0 +1,185 @@
+# One ArgoCD Application per service (handbook default: automated, selfHeal, prune).
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: config-server
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/config-server
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/config-server with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/config-server, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eureka-server
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/eureka-server
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/eureka-server with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/eureka-server, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-gateway
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/api-gateway
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/api-gateway with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/api-gateway, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/product-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/product-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/product-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inventory-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/inventory-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/inventory-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/inventory-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: payment-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/payment-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/payment-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/payment-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/order-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/order-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/order-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: notification-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/notification-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/notification-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/notification-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
