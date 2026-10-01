@@ -64,6 +64,7 @@ class OrderServiceTest {
     @MockitoBean OrderRepository orders;
     // No database in this test: the JDBC-backed Saga and outbox beans are stubbed (covered by OrderSagaIT).
     @MockitoBean OutboxWriter outboxWriter;
+    @MockitoBean OrderSagaService saga;
     @MockitoBean OutboxRelay relay;
     /** Keycloak's token endpoint is the boundary; the Feign interceptor gets a fixed token. */
     @MockitoBean OAuth2AuthorizedClientManager manager;
