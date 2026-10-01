@@ -5,6 +5,17 @@ spring:
     name: payment-service
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: payment-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 eureka:
   client:
     service-url:
@@ -14,3 +25,17 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+# Saga charge (S9): 3 attempts 200 ms apart, then PaymentFailed; the circuit opens at 50% failures over 10 calls.
+resilience4j:
+  retry:
+    instances:
+      charge:
+        max-attempts: 3
+        wait-duration: 200ms
+  circuitbreaker:
+    instances:
+      charge:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
