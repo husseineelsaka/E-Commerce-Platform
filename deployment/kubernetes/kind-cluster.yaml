@@ -1,0 +1,8 @@
+# Local kind cluster for L4. Host port 30080 reaches the Gateway's NodePort; nothing else is exposed.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ecommerce
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - {containerPort: 30080, hostPort: 30080, protocol: TCP}
