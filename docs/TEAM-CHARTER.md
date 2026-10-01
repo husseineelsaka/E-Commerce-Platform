@@ -56,7 +56,7 @@ By signing, each member agrees to this charter.
 
 | Member | GitHub handle | Signature | Date |
 | --- | --- | --- | --- |
-| Ahmed Khalaf | | | |
-| Ahmed Qamar | | | |
-| Sahar Attia | | | |
-| Hussein Elsaka | | | |
+| Ahmed Khalaf | `@5alafawyyy` | | |
+| Ahmed Qamar | `@AhmeddKamar` | | |
+| Sahar Attia | `@SaherAttia26` | | |
+| Hussein Elsaka | `@husseineelsaka` | | |
