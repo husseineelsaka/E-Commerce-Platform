@@ -1,0 +1,19 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Unreachable on purpose: tests must not depend on a running Keycloak (CI has none).
+          issuer-uri: http://localhost:1/realms/ecommerce-platform
+eureka:
+  client:
+    enabled: false
