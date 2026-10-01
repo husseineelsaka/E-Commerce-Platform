@@ -60,16 +60,25 @@ All public APIs are under `/api/v1`. Errors use one JSON shape: `{"status": 409,
 | Service | Method and path | Access (user role / service client) | Success | Errors |
 | --- | --- | --- | --- | --- |
 | product | `GET /api/v1/products?page&size` | Public | 200 page of products | 400 bad paging |
-| product | `GET /api/v1/products/{id}` | Public | 200 product incl. `categoryName`, `averageRating`, `reviewCount` | 404 |
-| product | `POST /api/v1/products` · `PUT /api/v1/products/{id}` · `DELETE /api/v1/products/{id}` | ADMIN via `gateway-service` | 201 / 200 / 204 | 400, 401, 403, 404 |
-| order | `POST /api/v1/orders` | CUSTOMER via `gateway-service` | 201 `{orderId, status: PENDING}` | 400, 401, 409 out of stock, 503 inventory unavailable |
-| order | `GET /api/v1/orders/{id}` | CUSTOMER (owner only) | 200 | 404 (also for another customer's order) |
-| order | `GET /api/v1/orders` | CUSTOMER (own orders) | 200 page | 401 |
-| inventory | `GET /api/v1/inventory/check?productId&quantity` | `order-service` client only, no public route | 200 `{available}` | 400, 403 |
-| inventory | `GET /api/v1/inventory/{productId}` · `PUT /api/v1/inventory/{productId}` | ADMIN via `gateway-service` | 200 | 400, 403, 404 |
-| payment | `POST /api/v1/payments` (header `Idempotency-Key`) | `payment-operator` client only, no public route | 201 (first) / 200 (repeat, same body) | 400 missing key, 403 |
-| payment | `POST /api/v1/payments/{id}/refund` | `payment-operator` client only | 200 | 403, 404, 409 already refunded |
+| product | `GET /api/v1/products/{id}` | Public; also `order-service` client for the price lookup (§3.4) | 200 product incl. `categoryName`; `averageRating`, `reviewCount` from L6 | 404 |
+| product | `POST /api/v1/products` · `PUT /api/v1/products/{id}` · `DELETE /api/v1/products/{id}` | ADMIN via `gateway-service` | 201 / 200 / 204 | 400, 401, 403, 404 (PUT/DELETE) |
+| order | `POST /api/v1/orders` | CUSTOMER via `gateway-service` | 201 `{orderId, status: PENDING}` | 400 (also unknown `productId`), 401, 409 out of stock, 503 product or inventory unavailable |
+| order | `GET /api/v1/orders/{id}` | CUSTOMER (owner only) | 200 | 401, 404 (also for another customer's order) |
+| order | `GET /api/v1/orders?page&size` | CUSTOMER (own orders) | 200 page | 400 bad paging, 401 |
+| inventory | `GET /api/v1/inventory/check?productId&quantity` | `order-service` client only, no public route | 200 `{available}` | 400, 401, 403 |
+| inventory | `GET /api/v1/inventory/{productId}` · `PUT /api/v1/inventory/{productId}` | ADMIN via `gateway-service` | 200 | 400, 401, 403, 404 |
+| payment | `POST /api/v1/payments` (header `Idempotency-Key`) | `payment-operator` client only, no public route | 201 (first) / 200 (repeat, same body) | 400 missing key, 401, 403, 409 order already paid under a different key, 422 same key with a different body |
+| payment | `POST /api/v1/payments/{id}/refund` | `payment-operator` client only | 200 | 401, 403, 404, 409 already refunded |
 | all | `GET /actuator/health`, `/actuator/prometheus` | Internal network only, never routed by Gateway | 200 | — |
+
+**Request bodies** (JSON; validation failures return 400):
+
+| Endpoint | Body |
+| --- | --- |
+| `POST` / `PUT /api/v1/products[/{id}]` | `{"name": string, "price": decimal > 0, "categoryId": long}` |
+| `POST /api/v1/orders` | `{"items": [{"productId": long, "quantity": int ≥ 1}]}` (at least one item; no customer ID — it comes from the Gateway header) |
+| `PUT /api/v1/inventory/{productId}` | `{"available": int ≥ 0}` |
+| `POST /api/v1/payments` | `{"orderId": UUID, "amount": decimal > 0}` |
 
 ### 3.2 B1 review endpoints
 
@@ -102,9 +111,23 @@ Every event carries `eventId` (UUID), `eventType`, `version` (starts at `1`), an
 - **TRADE-OFF:** a breaking change needs a `/api/v2` path and a new event version that consumers must handle side by side for a while.
 - **WHAT WOULD MAKE US REVISIT:** a second consumer of reviews (for example a moderation service) that needs fields we do not publish — we would add them as an additive v1 change rather than a v2.
 
+### 3.4 Order pricing and payment idempotency
+
+- **DECISION:** when placing an order, Order reads each item's current price from Product (`GET /api/v1/products/{id}` through OpenFeign with an `order-service` Client Credentials token) and stores it as `order_item.unit_price`; `orders.total_amount` is the sum. The client sends only product IDs and quantities.
+- **OPTIONS CONSIDERED:** (a) the client sends prices; (b) the Inventory stock check also returns the price; (c) Order asks Product.
+- **REASON:** (a) lets a customer choose their own price; (b) makes Inventory answer for data it does not own. Product owns prices, so Order asks Product, and the price is frozen on the order so later catalogue changes do not alter it.
+- **TRADE-OFF:** a second synchronous dependency on the place-order path. It uses the same Resilience4j protection as the stock check (CircuitBreaker, Retry, Bulkhead, TimeLimiter) and fails with `503` when Product is unavailable, before anything is saved. The product read is a cached public read, so the extra latency is small, but it counts against the NFR-02 order P95 of 800 ms. This adds one caller/endpoint pair to the §7 permissions table and one sync interaction to §5.
+- **WHAT WOULD MAKE US REVISIT:** order P95 near the 800 ms limit because of this call, or prices that change during checkout (then Order would copy prices into its own read model from product events instead).
+
+- **DECISION:** `payment.idempotency_key` is required. For `POST /api/v1/payments` it is the `Idempotency-Key` header; for payments started by the Saga (`InventoryReserved`) it is the `orderId`. `payment.request_hash` stores a SHA-256 of `orderId` + `amount`: a repeat with the same key and hash returns the stored payment with `200`; the same key with a different hash returns `422`.
+- **OPTIONS CONSIDERED:** a nullable key used only by the HTTP API; a separate idempotency table; one required column filled by both paths.
+- **REASON:** one required column means every payment, from HTTP or from Kafka, goes through the same "find by key, else charge" code, and the `order_id UNIQUE` constraint still guarantees one payment per order.
+- **TRADE-OFF:** an operator replaying a Saga payment by hand must use the `orderId` as the key, or the call returns `409` (order already paid under a different key).
+- **WHAT WOULD MAKE US REVISIT:** a real payment provider with its own idempotency keys, or partial payments (more than one payment per order).
+
 ## 4. DATA MODEL
 
-One PostgreSQL instance, one database and one owner role per service. Every schema change is a Flyway migration in `src/main/resources/db/migration`, named `V<n>__<description>.sql`. Migrations are only added, never edited after merge.
+One PostgreSQL instance, one database and one owner role per service (`<service>_owner`), created by `deployment/docker/postgres/init-databases.sh`; L0 creates `product_db`, `order_db`, `payment_db`, and `inventory_db`, and L6 adds `review_db` to the same script. Money columns (`price`, `unit_price`, `total_amount`, `amount`) are `NUMERIC(12,2)`, never floating point. Every schema change is a Flyway migration in `src/main/resources/db/migration`, named `V<n>__<description>.sql`. Migrations are only added, never edited after merge.
 
 | Database | Table | Key columns | Notes |
 | --- | --- | --- | --- |
@@ -113,13 +136,13 @@ One PostgreSQL instance, one database and one owner role per service. Every sche
 | product_db | `product_rating` (B1) | `product_id` PK/FK, `review_count`, `rating_sum` | average = `rating_sum / review_count`, computed on read |
 | product_db | `processed_event` | `event_id` PK, `processed_at` | dedup for `ReviewSubmitted` |
 | order_db | `orders` | `id` PK, `customer_id` (ownership), `status`, `total_amount`, `created_at` | index on `customer_id` |
-| order_db | `order_item` | `id` PK, `order_id` FK, `product_id`, `quantity`, `unit_price` | |
+| order_db | `order_item` | `id` PK, `order_id` FK, `product_id`, `quantity`, `unit_price` | `unit_price` copied from Product when the order is placed (§3.4) |
 | order_db | `outbox_event` | `id` PK, `aggregate_id`, `event_type`, `payload` JSONB, `created_at`, `published_at` NULL | poller reads rows with `published_at IS NULL` |
 | order_db | `processed_event` | `event_id` PK | |
 | inventory_db | `stock` | `product_id` PK, `available`, `reserved`, `version` | `CHECK (available >= 0)` |
 | inventory_db | `reservation` | `order_id` + `product_id` PK, `quantity`, `status`, `updated_at` | used for the NFR-05 30-second query |
 | inventory_db | `outbox_event`, `processed_event` | as in order_db | |
-| payment_db | `payment` | `id` PK, `order_id` UNIQUE, `idempotency_key` UNIQUE, `amount`, `status` | one outcome per order |
+| payment_db | `payment` | `id` PK, `order_id` UNIQUE, `idempotency_key` UNIQUE NOT NULL, `request_hash`, `amount`, `status` | one outcome per order; key and hash rules in §3.4 |
 | payment_db | `outbox_event`, `processed_event` | as in order_db | |
 | review_db (B1) | `review` | `id` PK, `product_id`, `customer_id`, `rating` `CHECK (1..5)`, `text`, `created_at`; **UNIQUE (`product_id`, `customer_id`)** | index on (`product_id`, `created_at DESC`) for paging |
 | review_db (B1) | `outbox_event` | as in order_db | |
