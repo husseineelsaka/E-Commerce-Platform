@@ -1,0 +1,94 @@
+{
+  "realm": "ecommerce-platform",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN"
+      },
+      {
+        "name": "CUSTOMER"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "user-sign-in",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ]
+    },
+    {
+      "clientId": "gateway-service",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${GATEWAY_CLIENT_SECRET}"
+    },
+    {
+      "clientId": "order-service",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${ORDER_CLIENT_SECRET}"
+    },
+    {
+      "clientId": "payment-operator",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${PAYMENT_OPERATOR_CLIENT_SECRET}"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin-test",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": [
+        "ADMIN"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${ADMIN_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "email": "admin-test@example.test",
+      "firstName": "Admin",
+      "lastName": "Test"
+    },
+    {
+      "username": "customer-test",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": [
+        "CUSTOMER"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${CUSTOMER_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "email": "customer-test@example.test",
+      "firstName": "Customer",
+      "lastName": "Test"
+    }
+  ]
+}
