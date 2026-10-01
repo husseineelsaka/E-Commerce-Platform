@@ -6,6 +6,6 @@ Three architecture drawings, kept as SVG files so they can be reviewed in PRs an
 | --- | --- | --- | --- | --- |
 | `01-service-boundaries.svg` | B1 service boundaries: what `review-service` owns and how it touches the existing services | Ahmed Qamar | §1, §2 | added |
 | `02-order-flow-sequence.svg` | Place-order sequence: happy path to `CONFIRMED`, and the payment-failure compensation path to `CANCELLED` | Ahmed Khalaf | §3.3, §5, §6 | added |
-| `03-data-locations.svg` | Where data lives: each database and its tables, Redis, and the service with no database | Sahar Attia | §4 | pending |
+| `03-data-locations.svg` | Where data lives: each database and its tables, Redis, and the service with no database | Sahar Attia | §4 | added |
 
 Each author's commit adds the drawing and changes its status to `added`.
