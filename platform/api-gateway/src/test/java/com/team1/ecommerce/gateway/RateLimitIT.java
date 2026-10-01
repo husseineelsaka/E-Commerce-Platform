@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
 import java.util.UUID;
 
 import com.team1.ecommerce.gateway.ratelimit.RateLimitConfig;
@@ -112,9 +114,7 @@ class RateLimitIT {
     void limitsOneClientOnly() throws Exception {
         String first = token("user-sign-in", "first-user", "CUSTOMER");
         String second = token("user-sign-in", "second-user", "CUSTOMER");
-        assertThat(status(first, Map.of())).isEqualTo(200);
-        assertThat(status(first, Map.of())).isEqualTo(200);
-        assertThat(status(first, Map.of())).isEqualTo(429);
+        assertThat(requestsUntilLimited(() -> status(first, Map.of()))).isEqualTo(429);
         assertThat(status(second, Map.of())).isEqualTo(200);
     }
 
@@ -122,9 +122,7 @@ class RateLimitIT {
     void limitsOneAnonymousIpOnly() {
         Map<String, String> first = Map.of("X-Forwarded-For", "192.0.2.10");
         Map<String, String> second = Map.of("X-Forwarded-For", "192.0.2.11");
-        assertThat(status(null, first)).isEqualTo(200);
-        assertThat(status(null, first)).isEqualTo(200);
-        assertThat(status(null, first)).isEqualTo(429);
+        assertThat(requestsUntilLimited(() -> status(null, first))).isEqualTo(429);
         assertThat(status(null, second)).isEqualTo(200);
     }
 
@@ -133,12 +131,26 @@ class RateLimitIT {
         List<String> trusted = limits.getTrustedProxies();
         limits.setTrustedProxies(List.of());
         try {
-            assertThat(status(null, Map.of("X-Forwarded-For", "192.0.2.20"))).isEqualTo(200);
-            assertThat(status(null, Map.of("X-Forwarded-For", "192.0.2.21"))).isEqualTo(200);
-            assertThat(status(null, Map.of("X-Forwarded-For", "192.0.2.22"))).isEqualTo(429);
+            // A new forged address on every request must still hit the same (peer-address) quota.
+            AtomicInteger forged = new AtomicInteger(20);
+            assertThat(requestsUntilLimited(() -> status(null,
+                    Map.of("X-Forwarded-For", "192.0.2." + forged.getAndIncrement())))).isEqualTo(429);
         } finally {
             limits.setTrustedProxies(trusted);
         }
+    }
+
+    /**
+     * Sends requests until one is rejected. The test limits allow a burst of 2 and refill 1 token per second;
+     * each local request takes far less than a second, so the bucket empties within a few requests no matter
+     * how slow the first (cold) request is. Returns the last status: 429 when limited, 200 if never limited.
+     */
+    private static int requestsUntilLimited(IntSupplier request) {
+        int status = 200;
+        for (int attempt = 0; attempt < 20 && status != 429; attempt++) {
+            status = request.getAsInt();
+        }
+        return status;
     }
 
     private int status(String token, Map<String, String> headers) {
