@@ -76,10 +76,14 @@ class ProductControllerTest {
 
     @BeforeEach
     void catalogue() throws Exception {
-        ProductView view = new ProductView(1L, "Wireless Headphones", new BigDecimal("79.99"), 1L, "Electronics");
+        ProductView view = new ProductView(1L, "Wireless Headphones", new BigDecimal("79.99"), 1L, "Electronics",
+                new BigDecimal("4.50"), 2);
         when(products.browse(any())).thenReturn(new PageImpl<>(List.of(view), PageRequest.of(0, 20), 1));
         when(products.findViewById(1L)).thenReturn(Optional.of(view));
         when(products.findViewById(999L)).thenReturn(Optional.empty());
+        // A created product is read back through the same view query; a new product has no reviews yet.
+        when(products.findViewById(42L)).thenReturn(Optional.of(new ProductView(42L, "Wireless Headphones",
+                new BigDecimal("79.99"), 1L, "Electronics", null, 0)));
         when(decoder.decode(anyString())).thenAnswer(invocation -> token(invocation.getArgument(0)));
         Category category = new Category("Electronics");
         ReflectionTestUtils.setField(category, "id", 1L);

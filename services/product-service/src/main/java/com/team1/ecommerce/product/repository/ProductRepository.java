@@ -10,14 +10,16 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = """
-            select new com.team1.ecommerce.product.dto.ProductView(p.id, p.name, p.price, c.id, c.name)
-            from Product p join p.category c
+            select new com.team1.ecommerce.product.dto.ProductView(
+                p.id, p.name, p.price, c.id, c.name, r.reviewCount, r.ratingSum)
+            from Product p join p.category c left join ProductRating r on r.productId = p.id
             """, countQuery = "select count(p) from Product p")
     Page<ProductView> browse(Pageable pageable);
 
     @Query("""
-            select new com.team1.ecommerce.product.dto.ProductView(p.id, p.name, p.price, c.id, c.name)
-            from Product p join p.category c where p.id = :id
+            select new com.team1.ecommerce.product.dto.ProductView(
+                p.id, p.name, p.price, c.id, c.name, r.reviewCount, r.ratingSum)
+            from Product p join p.category c left join ProductRating r on r.productId = p.id where p.id = :id
             """)
     Optional<ProductView> findViewById(Long id);
 }

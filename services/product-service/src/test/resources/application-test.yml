@@ -15,6 +15,12 @@ spring:
           # Unreachable on purpose: tests must not depend on a running Keycloak (CI has none).
           issuer-uri: http://localhost:1/realms/ecommerce-platform
           jwk-set-uri: http://localhost:1/realms/ecommerce-platform/protocol/openid-connect/certs
+  # ProductRatingProjectionIT switches these back on with a Testcontainers broker.
+  kafka:
+    listener:
+      auto-startup: false
+    admin:
+      auto-create: false
 eureka:
   client:
     enabled: false
