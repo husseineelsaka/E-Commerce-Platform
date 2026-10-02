@@ -6,6 +6,7 @@
 | `load-products.js` | anonymous product reads at 60 req/s for 2 min | P95 < 200 ms, ≥ 50 req/s, no 429 |
 | `load-orders.js` | 20 VUs placing orders with `sleep(1)` for 2 min | order POST P95 < 800 ms, no 429 |
 | `stress-products.js` | product reads in five one-minute stages up to `PEAK` req/s (default 2000), tagged per stage | find the breaking point |
+| `constant-products.js` | a fixed `RATE` req/s (default 800) for `DURATION` (default 120 s) | before/after comparison in the Performance Report |
 
 Run them with the k6 container on the Compose network (the platform must be up):
 

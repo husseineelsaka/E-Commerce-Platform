@@ -12,6 +12,11 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+  # L5 bottleneck fix: Spring Security wrapped every filter chain, authentication and authorization step in its own
+  # observation (9 of the 12 spans of one anonymous product read). Requests, Feign calls and Kafka stay traced.
+  observations:
+    enable:
+      spring.security: false
   # NFR-06: every request and every Kafka message is traced (W3C traceparent) and reported to Zipkin.
   tracing:
     sampling:
