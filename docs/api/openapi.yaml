@@ -1,0 +1,551 @@
+openapi: 3.0.3
+info:
+  title: Team 1 E-Commerce Platform API
+  version: "1.0"
+  description: |
+    Every customer and admin request goes through the API Gateway on `http://localhost:8080` (Kubernetes: `http://localhost:30080`).
+    The Gateway validates the Keycloak token, injects the caller's identity, and forwards the request with its own
+    client token (ADD §7).
+
+    **Getting a token.** Use the password grant on Keycloak for `customer-test` (CUSTOMER) or `admin-test` (ADMIN).
+    The passwords are in your local `deployment/docker/.env`, which is never committed.
+
+    ```
+    POST http://localhost:8180/realms/ecommerce-platform/protocol/openid-connect/token
+    grant_type=password&client_id=user-sign-in&username=customer-test&password=...
+    ```
+
+    Click **Authorize** and paste the `access_token`. Reading products and reviews needs no token.
+
+    **Rate limits (FR-13).** Anonymous callers get 100 requests/s per IP (burst 200). Signed-in callers get 20 requests/s per user (burst 40). Over the limit, the Gateway returns `429`.
+
+    **Internal endpoints** (tag `internal`) have no Gateway route and no host port. Only another service can call them, from
+    inside the Compose network or the cluster, with that service's client token.
+servers:
+  - url: http://localhost:8080
+    description: API Gateway (Docker Compose)
+  - url: http://localhost:30080
+    description: API Gateway (kind)
+tags:
+  - name: products
+    description: Catalogue (public reads, ADMIN writes)
+  - name: reviews
+    description: B1 Product Reviews & Ratings
+  - name: orders
+    description: Place and read your own orders (CUSTOMER)
+  - name: inventory
+    description: Stock administration (ADMIN)
+  - name: internal
+    description: Service-to-service only; not reachable through the Gateway
+security: []
+paths:
+  /api/v1/products:
+    get:
+      operationId: browseProducts
+      tags: [products]
+      summary: Browse the catalogue
+      description: Public. Served from the Redis cache when present (FR-03, NFR-02).
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page of products, ordered by id
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProductPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a product
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProductRequest'}
+      responses:
+        '201':
+          description: Created; `Location` is `/api/v1/products/{id}`
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: integer, format: int64, example: 1}
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Product detail with average rating
+      description: Public. `averageRating` and `reviewCount` come from Product's rating projection (B1).
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    put:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a product
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProductRequest'}
+      responses:
+        '200':
+          description: The updated product
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a product
+      security: [{bearerAuth: []}]
+      responses:
+        '204': {description: Deleted}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/products/{productId}/reviews:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema: {type: integer, format: int64, example: 6}
+    get:
+      operationId: listReviews
+      tags: [reviews]
+      summary: Read a product's reviews
+      description: Public, newest first.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page of reviews
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+    post:
+      operationId: submitReview
+      tags: [reviews]
+      summary: Review a product (once per customer)
+      description: |
+        The reviewer is taken from the token, never from the body. The product's average updates through the
+        `ReviewSubmitted` event within a few seconds.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewRequest'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Review'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: This customer already reviewed this product
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /api/v1/orders:
+    post:
+      operationId: placeOrder
+      tags: [orders]
+      summary: Place an order
+      description: |
+        Prices come from Product and stock is checked in Inventory (Feign with circuit breaker, retry, and time limit).
+        The order is saved as `PENDING`; the Saga then moves it to `CONFIRMED` or `CANCELLED` (FR-07 to FR-10).
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/OrderRequest'}
+      responses:
+        '201':
+          description: Accepted; `Location` is `/api/v1/orders/{orderId}`
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrderAccepted'}
+        '400':
+          description: Empty order, invalid or duplicate item, or unknown productId
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: Out of stock
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        '503':
+          description: Product or Inventory unavailable (circuit open or timeout)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List your own orders
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: One page of the caller's orders, newest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrderPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/orders/{orderId}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Read one of your orders
+      description: Another customer's order returns `404`, so its existence is not revealed.
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/inventory/{productId}:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema: {type: integer, format: int64, example: 1}
+    get:
+      operationId: getStock
+      tags: [inventory]
+      summary: Read stock
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Stock for the product
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stock'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      operationId: setStock
+      tags: [inventory]
+      summary: Set available stock
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StockAdjustment'}
+      responses:
+        '200':
+          description: Updated stock
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stock'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/inventory/check:
+    get:
+      operationId: checkStock
+      tags: [internal]
+      summary: "Internal: stock check before an order is placed"
+      description: |
+        Caller: `order-service` only, on `http://inventory-service:8084` with its client-credentials token.
+        Through the Gateway this path returns `403`.
+      servers:
+        - url: http://inventory-service:8084
+          description: inventory-service inside the Compose network
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: productId, in: query, required: true, schema: {type: integer, format: int64, minimum: 1, example: 1}}
+        - {name: quantity, in: query, required: true, schema: {type: integer, minimum: 1, example: 2}}
+      responses:
+        '200':
+          description: Whether that quantity is available
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StockCheck'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/payments:
+    post:
+      operationId: createPayment
+      tags: [internal]
+      summary: "Internal: create a payment (idempotent)"
+      description: |
+        Caller: the `payment-operator` client, on `http://payment-service:8083`. The simulated charge decides the
+        status (`COMPLETED`, or `FAILED` when `PAYMENT_FAILURE_RATE` declines it). Repeating the same `Idempotency-Key`
+        with the same body returns the first payment (`200`). The Saga charges orders through Kafka, not this endpoint.
+      servers:
+        - url: http://payment-service:8083
+          description: payment-service inside the Compose network
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 100, example: demo-payment-1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PaymentRequest'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '200':
+          description: Same key and body as an earlier request; that payment is returned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: The order already has a payment under a different Idempotency-Key
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '422':
+          description: The Idempotency-Key was used before with a different orderId or amount
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /api/v1/payments/{paymentId}/refund:
+    post:
+      operationId: refundPayment
+      tags: [internal]
+      summary: "Internal: refund a payment"
+      servers:
+        - url: http://payment-service:8083
+          description: payment-service inside the Compose network
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The payment, now REFUNDED
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: Only a COMPLETED payment can be refunded
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token (realm `ecommerce-platform`)
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: {type: integer, minimum: 0, default: 0}
+    Size:
+      name: size
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+  responses:
+    BadRequest:
+      description: Invalid input (validation message in `message`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Unauthorized:
+      description: Missing, expired, or invalid token
+    Forbidden:
+      description: Token is valid but the role or caller is not allowed
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    TooManyRequests:
+      description: Rate limit exceeded (FR-13)
+  schemas:
+    Error:
+      type: object
+      properties:
+        status: {type: integer, example: 400}
+        error: {type: string, example: Bad Request}
+        message: {type: string, example: rating must be between 1 and 5}
+        path: {type: string, example: /api/v1/products/6/reviews}
+    PageMetadata:
+      type: object
+      properties:
+        size: {type: integer, example: 20}
+        number: {type: integer, example: 0}
+        totalElements: {type: integer, format: int64, example: 20}
+        totalPages: {type: integer, example: 1}
+    ProductRequest:
+      type: object
+      required: [name, price, categoryId]
+      properties:
+        name: {type: string, maxLength: 255, example: Travel Mug}
+        price: {type: number, format: decimal, minimum: 0, exclusiveMinimum: true, example: 19.99, description: 'At most 2 decimal places'}
+        categoryId: {type: integer, format: int64, example: 2, description: '1 Electronics, 2 Home, 3 Books, 4 Outdoors'}
+    Product:
+      type: object
+      properties:
+        id: {type: integer, format: int64, example: 1}
+        name: {type: string, example: Wireless Headphones}
+        price: {type: number, format: decimal, example: 79.99}
+        categoryId: {type: integer, format: int64, example: 1}
+        categoryName: {type: string, example: Electronics}
+        averageRating: {type: number, format: decimal, nullable: true, example: 4.5, description: 'null until the first review'}
+        reviewCount: {type: integer, format: int64, example: 2}
+    ProductPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: {$ref: '#/components/schemas/Product'}
+        page: {$ref: '#/components/schemas/PageMetadata'}
+    ReviewRequest:
+      type: object
+      required: [rating, text]
+      properties:
+        rating: {type: integer, minimum: 1, maximum: 5, example: 4}
+        text: {type: string, maxLength: 2000, example: 'Does the job, quiet and fast.'}
+    Review:
+      type: object
+      properties:
+        reviewId: {type: string, format: uuid}
+        productId: {type: integer, format: int64, example: 6}
+        rating: {type: integer, example: 4}
+        text: {type: string, example: 'Does the job, quiet and fast.'}
+        createdAt: {type: string, format: date-time}
+    ReviewPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: {$ref: '#/components/schemas/Review'}
+        page: {$ref: '#/components/schemas/PageMetadata'}
+    OrderRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          description: Each productId at most once
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: {type: integer, format: int64, minimum: 1, example: 1}
+              quantity: {type: integer, minimum: 1, example: 2}
+    OrderAccepted:
+      type: object
+      properties:
+        orderId: {type: string, format: uuid}
+        status: {type: string, enum: [PENDING]}
+    Order:
+      type: object
+      properties:
+        orderId: {type: string, format: uuid}
+        status: {type: string, enum: [PENDING, CONFIRMED, CANCELLED]}
+        totalAmount: {type: number, format: decimal, example: 159.98}
+        createdAt: {type: string, format: date-time}
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId: {type: integer, format: int64, example: 1}
+              quantity: {type: integer, example: 2}
+              unitPrice: {type: number, format: decimal, example: 79.99}
+    OrderPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: {$ref: '#/components/schemas/Order'}
+        page: {$ref: '#/components/schemas/PageMetadata'}
+    Stock:
+      type: object
+      properties:
+        productId: {type: integer, format: int64, example: 1}
+        available: {type: integer, example: 100}
+        reserved: {type: integer, example: 3}
+    StockAdjustment:
+      type: object
+      required: [available]
+      properties:
+        available: {type: integer, minimum: 0, example: 150}
+    StockCheck:
+      type: object
+      properties:
+        available: {type: boolean, example: true}
+    PaymentRequest:
+      type: object
+      required: [orderId, amount]
+      properties:
+        orderId: {type: string, format: uuid}
+        amount: {type: number, format: decimal, minimum: 0, exclusiveMinimum: true, maximum: 9999999999.99, example: 49.90}
+    Payment:
+      type: object
+      properties:
+        paymentId: {type: string, format: uuid}
+        orderId: {type: string, format: uuid}
+        amount: {type: number, format: decimal, example: 49.90}
+        status: {type: string, enum: [COMPLETED, FAILED, REFUNDED]}

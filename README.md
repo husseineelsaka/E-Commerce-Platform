@@ -104,4 +104,5 @@ curl -s http://localhost:8080/api/v1/products/6 | jq '{averageRating, reviewCoun
 
 - kind and Helm: [deployment/kubernetes/README.md](deployment/kubernetes/README.md); ArgoCD: [deployment/argocd/README.md](deployment/argocd/README.md).
 - Zipkin `http://localhost:9411`, Prometheus `http://localhost:9090`, Grafana `http://localhost:3000` (dashboard "E-Commerce Platform").
+- API docs: Swagger UI `http://localhost:8089` and a Postman collection for every request, in [docs/api](docs/api/README.md).
 - k6 scripts and how to run them: [k6/README.md](k6/README.md); results: [docs/PERFORMANCE-REPORT.md](docs/PERFORMANCE-REPORT.md).

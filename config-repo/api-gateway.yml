@@ -9,3 +9,6 @@ gateway:
       replenish-rate: ${GATEWAY_USER_REPLENISH_RATE:20}
       burst-capacity: ${GATEWAY_USER_BURST:40}
     trusted-proxies: []
+  cors:
+    # Swagger UI from docs/api, started by Docker Compose on port 8089.
+    allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:8089}
