@@ -17,6 +17,9 @@ management:
   observations:
     enable:
       spring.security: false
+      # The outbox pollers run every 500 ms; observing each run started a new trace twice a second per service and
+      # buried real traces in Zipkin. The relay still opens its own span inside each event's original trace.
+      tasks.scheduled: false
   # NFR-06: every request and every Kafka message is traced (W3C traceparent) and reported to Zipkin.
   tracing:
     sampling:
