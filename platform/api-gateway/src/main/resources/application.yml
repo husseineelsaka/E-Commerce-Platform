@@ -31,6 +31,12 @@ spring:
                 rate-limiter: "#{@clientRateLimiter}"
                 key-resolver: "#{@clientKeyResolver}"
           routes:
+            # Declared before product-reads: /api/v1/products/** would otherwise send reviews to product-service (ADD §3.2).
+            - id: reviews
+              uri: ${REVIEW_SERVICE_URI:lb://review-service}
+              predicates:
+                - Method=GET,POST
+                - Path=/api/v1/products/{productId}/reviews
             - id: product-reads
               uri: ${PRODUCT_SERVICE_URI:lb://product-service}
               predicates:

@@ -36,7 +36,8 @@
       "protocolMappers": [
         {"name": "product-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "product-service", "access.token.claim": "true", "id.token.claim": "false"}},
         {"name": "order-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "order-service", "access.token.claim": "true", "id.token.claim": "false"}},
-        {"name": "inventory-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "inventory-service", "access.token.claim": "true", "id.token.claim": "false"}}
+        {"name": "inventory-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "inventory-service", "access.token.claim": "true", "id.token.claim": "false"}},
+        {"name": "review-service-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper", "config": {"included.client.audience": "review-service", "access.token.claim": "true", "id.token.claim": "false"}}
       ]
     },
     {

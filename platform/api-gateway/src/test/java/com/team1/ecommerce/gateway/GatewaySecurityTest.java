@@ -41,6 +41,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 class GatewaySecurityTest {
     private static final MockWebServer keycloak = new MockWebServer();
     private static final MockWebServer downstream = new MockWebServer();
+    private static final MockWebServer reviews = new MockWebServer();
     private static final KeyPair keyPair = signingKey();
     private static final String serviceToken = "gateway-service-test-token";
 
@@ -73,12 +74,14 @@ class GatewaySecurityTest {
         });
         keycloak.start();
         downstream.start();
+        reviews.start();
     }
 
     @AfterAll
     static void stopServers() throws IOException {
         keycloak.shutdown();
         downstream.shutdown();
+        reviews.shutdown();
     }
 
     @DynamicPropertySource
@@ -88,6 +91,7 @@ class GatewaySecurityTest {
         registry.add("PRODUCT_SERVICE_URI", () -> downstream.url("/").toString());
         registry.add("ORDER_SERVICE_URI", () -> downstream.url("/").toString());
         registry.add("INVENTORY_SERVICE_URI", () -> downstream.url("/").toString());
+        registry.add("REVIEW_SERVICE_URI", () -> reviews.url("/").toString());
     }
 
     @Test
@@ -143,6 +147,49 @@ class GatewaySecurityTest {
         assertThat(request).isNotNull();
         assertThat(request.getHeaders().names()).noneMatch(name -> name.regionMatches(true, 0, "X-User-", 0, 7));
         assertThat(request.getHeader(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer " + serviceToken);
+    }
+
+    @Test
+    void anonymousReviewReadGoesToReviewServiceNotProduct() throws Exception {
+        int productRequests = downstream.getRequestCount();
+        reviews.enqueue(json("{}"));
+        int status = response("GET", "/api/v1/products/7/reviews?page=0&size=10", null, Map.of())
+                .exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
+        RecordedRequest request = reviews.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(status).isEqualTo(200);
+        assertThat(request).isNotNull();
+        assertThat(request.getPath()).isEqualTo("/api/v1/products/7/reviews?page=0&size=10");
+        assertThat(downstream.getRequestCount()).isEqualTo(productRequests);
+    }
+
+    @Test
+    void customerReviewSubmitCarriesGatewayIdentity() throws Exception {
+        reviews.enqueue(json("{}").setResponseCode(201));
+        int status = response("POST", "/api/v1/products/7/reviews", token("user-sign-in", "customer-7", "CUSTOMER"),
+                Map.of("X-User-Id", "forged")).exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
+        RecordedRequest request = reviews.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(status).isEqualTo(201);
+        assertThat(request).isNotNull();
+        assertThat(request.getHeader("X-User-Id")).isEqualTo("customer-7");
+        assertThat(request.getHeader(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer " + serviceToken);
+    }
+
+    @Test
+    void reviewSubmitWithoutTokenIsUnauthorized() {
+        int before = reviews.getRequestCount();
+        int status = response("POST", "/api/v1/products/7/reviews", null, Map.of())
+                .exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
+        assertThat(status).isEqualTo(401);
+        assertThat(reviews.getRequestCount()).isEqualTo(before);
+    }
+
+    @Test
+    void adminCannotSubmitReview() throws Exception {
+        int before = reviews.getRequestCount();
+        int status = response("POST", "/api/v1/products/7/reviews", token("user-sign-in", "admin", "ADMIN"), Map.of())
+                .exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
+        assertThat(status).isEqualTo(403);
+        assertThat(reviews.getRequestCount()).isEqualTo(before);
     }
 
     @Test
