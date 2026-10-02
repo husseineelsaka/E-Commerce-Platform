@@ -169,6 +169,14 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+  # API documentation (docs/api/openapi.yaml) at http://localhost:8089; "Try it out" calls the Gateway on :8080.
+  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.27.1
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+    volumes:
+      - ../../docs/api:/spec:ro
+    ports: ["8089:8080"]
   prometheus:
     image: prom/prometheus:v3.5.0
     ports: ["9090:9090"]

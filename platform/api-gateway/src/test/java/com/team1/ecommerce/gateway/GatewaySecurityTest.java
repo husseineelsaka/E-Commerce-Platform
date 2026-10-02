@@ -92,6 +92,7 @@ class GatewaySecurityTest {
         registry.add("ORDER_SERVICE_URI", () -> downstream.url("/").toString());
         registry.add("INVENTORY_SERVICE_URI", () -> downstream.url("/").toString());
         registry.add("REVIEW_SERVICE_URI", () -> reviews.url("/").toString());
+        registry.add("gateway.cors.allowed-origins", () -> "http://localhost:8089");
     }
 
     @Test
@@ -190,6 +191,28 @@ class GatewaySecurityTest {
                 .exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
         assertThat(status).isEqualTo(403);
         assertThat(reviews.getRequestCount()).isEqualTo(before);
+    }
+
+    @Test
+    void swaggerUiOriginPassesCorsPreflight() {
+        var response = WebClient.create("http://localhost:" + port).options().uri("/api/v1/orders")
+                .header(HttpHeaders.ORIGIN, "http://localhost:8089")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type")
+                .exchangeToMono(r -> r.releaseBody().thenReturn(r)).block();
+        assertThat(response.statusCode().value()).isEqualTo(200);
+        assertThat(response.headers().asHttpHeaders().getAccessControlAllowOrigin()).isEqualTo("http://localhost:8089");
+    }
+
+    @Test
+    void unknownOriginFailsCorsPreflight() {
+        int before = downstream.getRequestCount();
+        int status = WebClient.create("http://localhost:" + port).options().uri("/api/v1/orders")
+                .header(HttpHeaders.ORIGIN, "http://evil.example")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .exchangeToMono(r -> r.releaseBody().thenReturn(r.statusCode().value())).block();
+        assertThat(status).isEqualTo(403);
+        assertThat(downstream.getRequestCount()).isEqualTo(before);
     }
 
     @Test

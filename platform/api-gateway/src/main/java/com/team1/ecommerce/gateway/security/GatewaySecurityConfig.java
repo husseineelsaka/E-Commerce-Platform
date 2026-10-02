@@ -1,11 +1,13 @@
 package com.team1.ecommerce.gateway.security;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +27,9 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import reactor.core.publisher.Flux;
 
@@ -36,6 +41,7 @@ public class GatewaySecurityConfig {
         authenticationConverter.setJwtGrantedAuthoritiesConverter(this::realmAuthorities);
 
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                         // Actuator exists only on the management port (management.server.port), never on 8080.
                         .pathMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
@@ -52,6 +58,22 @@ public class GatewaySecurityConfig {
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter)))
                 .build();
+    }
+
+    /**
+     * Browser origins allowed to call the API, such as the Swagger UI in Docker Compose (docs/api). The list is empty
+     * by default, so no cross-origin call is allowed. Preflight requests are answered before authentication.
+     */
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(@Value("${gateway.cors.allowed-origins:}") String[] origins) {
+        CorsConfiguration cors = new CorsConfiguration();
+        cors.setAllowedOrigins(Arrays.stream(origins).map(String::trim).filter(origin -> !origin.isEmpty()).toList());
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cors.setExposedHeaders(List.of("Location"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", cors);
+        return source;
     }
 
     /** Validates {@code iss} against the public issuer; signing keys come from {@code jwk-set-uri} (internal URL in containers). */
