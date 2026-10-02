@@ -73,7 +73,8 @@ public class ProductService {
         evictAfterCommit(id);
     }
 
-    private void evictAfterCommit(Long id) {
+    /** Evicts the product (and every cached list page) once the current transaction commits. */
+    void evictAfterCommit(Long id) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             evictWrittenProduct(id);
             return;
@@ -116,8 +117,6 @@ public class ProductService {
     }
 
     private ProductView view(Product product) {
-        Category category = product.getCategory();
-        return new ProductView(product.getId(), product.getName(), product.getPrice(),
-                category.getId(), category.getName());
+        return products.findViewById(product.getId()).orElseThrow(() -> new ProductNotFoundException(product.getId()));
     }
 }

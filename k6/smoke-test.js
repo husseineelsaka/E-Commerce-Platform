@@ -22,6 +22,8 @@ export default function (data) {
   const auth = { headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' } };
   check(http.get(`${baseUrl}/api/v1/products?page=0&size=10`), { 'list products 200': (r) => r.status === 200 });
   check(http.get(`${baseUrl}/api/v1/products/1`), { 'product detail 200': (r) => r.status === 200 });
+  // ADD §6 F2: reviews must reach review-service through the Gateway, not product-service.
+  check(http.get(`${baseUrl}/api/v1/products/1/reviews?page=0&size=5`), { 'product reviews 200': (r) => r.status === 200 });
   const order = http.post(`${baseUrl}/api/v1/orders`, JSON.stringify({ items: [{ productId: 1, quantity: 1 }] }), auth);
   check(order, { 'place order 201': (r) => r.status === 201 });
   check(http.get(`${baseUrl}/api/v1/orders?page=0&size=5`, auth), { 'own orders 200': (r) => r.status === 200 });

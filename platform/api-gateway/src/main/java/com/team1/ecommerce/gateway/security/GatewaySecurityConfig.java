@@ -41,6 +41,7 @@ public class GatewaySecurityConfig {
                         .pathMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .pathMatchers("/api/v1/inventory/check").denyAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/products", "/api/v1/products/**").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/products/{productId}/reviews").hasRole("CUSTOMER")
                         .pathMatchers(HttpMethod.POST, "/api/v1/products").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.PUT, "/api/v1/products/{id}").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/products/{id}").hasRole("ADMIN")

@@ -15,6 +15,7 @@ x-app-env: &app-env
   INVENTORY_DB_HOST: postgres
   PAYMENT_DB_HOST: postgres
   ORDER_DB_HOST: postgres
+  REVIEW_DB_HOST: postgres
 x-app-health-8888: &app-health-8888
   test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8888/actuator/health"]
   interval: 15s
@@ -57,6 +58,12 @@ x-app-health-8084: &app-health-8084
   timeout: 5s
   retries: 20
   start_period: 40s
+x-app-health-8086: &app-health-8086
+  test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8086/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 40s
 x-app-health-8085: &app-health-8085
   test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8085/actuator/health"]
   interval: 15s
@@ -74,6 +81,7 @@ services:
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?set ORDER_DB_PASSWORD}
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD}
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD:?set INVENTORY_DB_PASSWORD}
+      REVIEW_DB_PASSWORD: ${REVIEW_DB_PASSWORD:?set REVIEW_DB_PASSWORD}
     ports: ["${POSTGRES_HOST_PORT:-5432}:5432"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -262,6 +270,14 @@ services:
       NOTIFICATION_FAIL: ${NOTIFICATION_FAIL:-false}
     depends_on: *saga-ready
     healthcheck: *app-health-8085
+  review-service:
+    image: ecommerce/review-service:local
+    build: {context: ../.., dockerfile: services/review-service/Dockerfile}
+    environment:
+      <<: *app-env
+      REVIEW_DB_PASSWORD: ${REVIEW_DB_PASSWORD}
+    depends_on: *saga-ready
+    healthcheck: *app-health-8086
 
 volumes:
   postgres_data:

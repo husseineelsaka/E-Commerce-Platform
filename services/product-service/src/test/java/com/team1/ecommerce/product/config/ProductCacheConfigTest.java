@@ -20,7 +20,8 @@ class ProductCacheConfigTest {
         var manager = new ProductCacheConfig().cacheManager(mock(RedisConnectionFactory.class),
                 Duration.ofMinutes(10));
         manager.afterPropertiesSet();
-        var product = new ProductView(1L, "Wireless Headphones", new BigDecimal("79.99"), 1L, "Electronics");
+        var product = new ProductView(1L, "Wireless Headphones", new BigDecimal("79.99"), 1L, "Electronics",
+                new BigDecimal("4.50"), 2);
         var page = new ProductPage(List.of(product), new ProductPage.PageMetadata(20, 0, 1, 1));
 
         assertRoundTrip((RedisCache) manager.getCache("products:item"), product);
