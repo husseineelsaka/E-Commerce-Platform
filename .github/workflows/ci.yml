@@ -19,6 +19,15 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      # ADD §6 F2: every application folder must ship with a Helm chart of the same name.
+      - name: Every application has a Helm chart
+        run: |
+          missing=0
+          for dir in platform/*/ services/*/; do
+            app=$(basename "$dir")
+            [ -f "deployment/helm/$app/Chart.yaml" ] || { echo "::error::$dir has no chart in deployment/helm/$app"; missing=1; }
+          done
+          exit $missing
       - run: mvn -B verify
 
   # One image per application, built from the repository root with its multi-stage Dockerfile.
@@ -41,6 +50,7 @@ jobs:
           - {name: payment-service, dir: services/payment-service}
           - {name: inventory-service, dir: services/inventory-service}
           - {name: notification-service, dir: services/notification-service}
+          - {name: review-service, dir: services/review-service}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

@@ -1,6 +1,6 @@
 # Kubernetes (kind)
 
-Local cluster for L4: `kind-cluster.yaml` (cluster `ecommerce`, host port 30080 → Gateway NodePort) and `up.sh`, which deploys the eight Helm charts from `deployment/helm`.
+Local cluster for L4: `kind-cluster.yaml` (cluster `ecommerce`, host port 30080 → Gateway NodePort) and `up.sh`, which deploys the nine Helm charts from `deployment/helm`.
 
 Infrastructure stays in Docker Compose. `up.sh` connects the kind node to the Compose network, so pods reach `postgres`, `kafka:29092`, `redis`, and `keycloak:8180` by name.
 

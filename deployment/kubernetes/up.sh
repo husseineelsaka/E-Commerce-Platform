@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Creates the kind cluster and installs the eight applications with Helm.
+# Creates the kind cluster and installs the nine applications with Helm.
 # Infrastructure (PostgreSQL, Kafka, Redis, Keycloak) keeps running in Docker Compose; the kind node joins the Compose
 # network so pods reach it by service name (postgres, kafka:29092, redis, keycloak:8180).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 ENV_FILE=deployment/docker/.env
-APPS=(config-server eureka-server api-gateway product-service inventory-service payment-service order-service notification-service)
+APPS=(config-server eureka-server api-gateway product-service inventory-service payment-service order-service notification-service review-service)
 NETWORK=${COMPOSE_NETWORK:-docker_default}
 TAG=${IMAGE_TAG:-local}
 

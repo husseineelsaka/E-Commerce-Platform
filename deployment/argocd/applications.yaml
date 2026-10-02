@@ -183,3 +183,26 @@ spec:
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: review-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/husseineelsaka/E-Commerce-Platform.git
+    targetRevision: main
+    path: deployment/helm/review-service
+    helm:
+      # kind runs the locally built images loaded by deployment/kubernetes/up.sh; a registry-based cluster would
+      # use ghcr.io/husseineelsaka/review-service with the commit-SHA tag pushed by CI.
+      valuesObject:
+        image: {repository: ecommerce/review-service, tag: local, pullPolicy: Never}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
