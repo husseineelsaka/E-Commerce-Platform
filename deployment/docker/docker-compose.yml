@@ -8,6 +8,9 @@ x-app-env: &app-env
   KEYCLOAK_TOKEN_URI: http://keycloak:8180/realms/ecommerce-platform/protocol/openid-connect/token
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   REDIS_HOST: redis
+  ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+  # NFR-06: JSON (ECS) console logs; every line carries trace.id and span.id.
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
   PRODUCT_DB_HOST: postgres
   INVENTORY_DB_HOST: postgres
   PAYMENT_DB_HOST: postgres
@@ -148,6 +151,10 @@ services:
       start_period: 45s
   zipkin:
     image: openzipkin/zipkin:3.5.1
+    # In-memory storage: the image default (160 MB heap, 500k spans) runs out of memory under load; cap spans, raise heap (L5).
+    environment:
+      MEM_MAX_SPANS: "100000"
+      JAVA_OPTS: -Xms256m -Xmx768m -XX:+ExitOnOutOfMemoryError
     ports: ["9411:9411"]
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9411/health"]
@@ -174,6 +181,8 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health"]
       interval: 15s
@@ -199,6 +208,9 @@ services:
     environment:
       <<: *app-env
       GATEWAY_CLIENT_SECRET: ${GATEWAY_CLIENT_SECRET}
+      # ADD §7 defaults; k6/stress-products.js raises the anonymous limit so it measures the platform, not the limiter.
+      GATEWAY_ANON_REPLENISH_RATE: ${GATEWAY_ANON_REPLENISH_RATE:-100}
+      GATEWAY_ANON_BURST: ${GATEWAY_ANON_BURST:-200}
     ports: ["8080:8080"]
     depends_on: &platform-ready
       eureka-server: {condition: service_healthy}

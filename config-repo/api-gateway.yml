@@ -1,9 +1,11 @@
 gateway:
   rate-limit:
+    # ADD §7 limits. The stress test raises the anonymous rate (GATEWAY_ANON_REPLENISH_RATE / _BURST) so it measures
+    # the platform, not the limiter.
     anonymous:
-      replenish-rate: 100
-      burst-capacity: 200
+      replenish-rate: ${GATEWAY_ANON_REPLENISH_RATE:100}
+      burst-capacity: ${GATEWAY_ANON_BURST:200}
     signed-in:
-      replenish-rate: 20
-      burst-capacity: 40
+      replenish-rate: ${GATEWAY_USER_REPLENISH_RATE:20}
+      burst-capacity: ${GATEWAY_USER_BURST:40}
     trusted-proxies: []

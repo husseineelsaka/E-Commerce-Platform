@@ -13,6 +13,8 @@ service:
 secretName: ecommerce-secrets
 secretEnv: []
 env:
+  ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"
   CONFIG_SERVER_URL: "http://config-server:8888"
 resources:
   requests: {cpu: 100m, memory: 384Mi}
