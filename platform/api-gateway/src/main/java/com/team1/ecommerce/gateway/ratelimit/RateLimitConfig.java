@@ -1,6 +1,9 @@
 package com.team1.ecommerce.gateway.ratelimit;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -8,10 +11,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
+import org.springframework.cloud.gateway.support.ConfigurationService;
 import org.springframework.cloud.gateway.support.ipresolver.XForwardedRemoteAddressResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.server.util.matcher.IpAddressServerWebExchangeMatcher;
 
@@ -43,7 +50,9 @@ public class RateLimitConfig {
 
     @Bean
     @Primary
-    RateLimiter<RedisRateLimiter.Config> clientRateLimiter(RedisRateLimiter redis, Limits limits) {
+    RateLimiter<RedisRateLimiter.Config> clientRateLimiter(ReactiveStringRedisTemplate redisTemplate,
+            ConfigurationService configurationService, Limits limits) {
+        var redis = new RedisRateLimiter(redisTemplate, tokenBucketScript(), configurationService);
         redis.getConfig().put("anonymous", new RedisRateLimiter.Config()
                 .setReplenishRate(limits.getAnonymous().getReplenishRate())
                 .setBurstCapacity(limits.getAnonymous().getBurstCapacity()));
@@ -52,6 +61,21 @@ public class RateLimitConfig {
                 .setBurstCapacity(limits.getSignedIn().getBurstCapacity()));
         // ponytail: Fail open during a Redis outage so browsing continues; use fail closed if abuse during outages becomes unacceptable.
         return new ClientRateLimiter(redis);
+    }
+
+    /**
+     * Spring Cloud Gateway's token-bucket script, read once. The auto-configured script re-reads the Lua file's
+     * last-modified time from the jar on every request (about 5 % of Gateway CPU in the L5 profile).
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static RedisScript<List<Long>> tokenBucketScript() {
+        try {
+            String lua = new ClassPathResource("META-INF/scripts/request_rate_limiter.lua")
+                    .getContentAsString(StandardCharsets.UTF_8);
+            return (RedisScript) RedisScript.of(lua, List.class);
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
     }
 
     public static class Limits {
