@@ -1,6 +1,16 @@
 # Enterprise E-Commerce Platform
 
-Team 1's Java 21 / Spring Boot 3.5.16 / Spring Cloud 2025.0.3 monorepo. L0 provides eight independent applications and shared local infrastructure. Business APIs begin in L1.
+Team 1's Java 21 / Spring Boot 3.5.16 / Spring Cloud 2025.0.3 monorepo: nine independent applications (Config Server, Eureka, Gateway, and the product, order, payment, inventory, notification, and review services) on shared local infrastructure.
+
+| Layer | What it delivers | Phase document |
+| --- | --- | --- |
+| L0 | Monorepo, infrastructure, Config Server, Eureka, charter, ADD | [L0](docs/phases/L0.md) |
+| L1 | Gateway security, product catalogue, Redis cache, rate limiting | [L1](docs/phases/L1.md) |
+| L2 | Inventory, payment, place order with Feign and resilience | [L2](docs/phases/L2.md) |
+| L3 | Choreography Saga with transactional outbox, idempotent consumers, DLT, notifications | [L3](docs/phases/L3.md) |
+| L4 | Docker Compose, CI to GHCR, Helm, kind, ArgoCD | [L4](docs/phases/L4.md) |
+| L5 | Tracing across HTTP and Kafka, Grafana, k6, [Performance Report](docs/PERFORMANCE-REPORT.md) | [L5](docs/phases/L5.md) |
+| L6 | B1 Product Reviews & Ratings (`review-service`) | [L6](docs/phases/L6.md) |
 
 ## Prerequisites
 
@@ -67,16 +77,31 @@ docker compose -f deployment/docker/docker-compose.yml --env-file deployment/doc
 
 ## Run the whole platform with Docker Compose
 
-`deployment/docker/docker-compose.yml` runs the infrastructure **and** the eight applications (NFR-08). Images are built from each module's multi-stage Dockerfile (non-root user `app`, healthcheck).
+`deployment/docker/docker-compose.yml` runs the infrastructure **and** the nine applications (NFR-08). Images are built from each module's multi-stage Dockerfile (non-root user `app`, healthcheck).
 
 ```sh
 cp deployment/docker/.env.example deployment/docker/.env   # then replace every CHANGE_ME value
 docker compose -f deployment/docker/docker-compose.yml --env-file deployment/docker/.env up -d --build --wait
 ```
 
-- Only the Gateway is published for API traffic: `http://localhost:8080`. Product, order, payment, inventory, notification, Config Server, and Eureka have no host port (ADD §7). Infrastructure keeps its host ports for development tools.
+- Only the Gateway is published for API traffic: `http://localhost:8080`. Product, order, payment, inventory, notification, review, Config Server, and Eureka have no host port (ADD §7). Infrastructure keeps its host ports for development tools.
 - Containers reach each other by service name (`postgres`, `kafka:29092`, `redis`, `keycloak:8180`, `config-server`, `eureka-server`).
 - Keycloak runs with `KC_HOSTNAME=http://localhost:8180`, so every token has the issuer `http://localhost:8180/realms/ecommerce-platform` whichever address fetched it. Services validate that issuer and load signing keys from `KEYCLOAK_JWK_SET_URI` (`http://keycloak:8180/...` in Compose); the Gateway and order-service fetch tokens from `KEYCLOAK_TOKEN_URI`.
 - Demo switches in `.env`: `PAYMENT_FAILURE_RATE=1.0` (every charge declines → compensation), `NOTIFICATION_FAIL=true` (every notification fails → `order-events.DLT`).
 - `scripts/verify-l0.sh` checks Config Server and Eureka on the host ports used when they run with `mvn spring-boot:run`; in the full Compose mode use `docker compose ps`, which shows every container's health.
 
+## Reviews and ratings (B1)
+
+A signed-in customer reviews a product once (rating 1–5 plus text); anyone reads reviews; product detail shows `averageRating` and `reviewCount`, updated through the `ReviewSubmitted` event within a few seconds. With `TOKEN` from the example above:
+
+```sh
+curl -i -X POST http://localhost:8080/api/v1/products/6/reviews -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json' -d '{"rating": 4, "text": "Does the job, quiet and fast."}'   # 201; again: 409
+curl -s 'http://localhost:8080/api/v1/products/6/reviews?page=0&size=10' | jq        # public, newest first
+curl -s http://localhost:8080/api/v1/products/6 | jq '{averageRating, reviewCount}'
+```
+
+## Kubernetes, observability, and load tests
+
+- kind and Helm: [deployment/kubernetes/README.md](deployment/kubernetes/README.md); ArgoCD: [deployment/argocd/README.md](deployment/argocd/README.md).
+- Zipkin `http://localhost:9411`, Prometheus `http://localhost:9090`, Grafana `http://localhost:3000` (dashboard "E-Commerce Platform").
+- k6 scripts and how to run them: [k6/README.md](k6/README.md); results: [docs/PERFORMANCE-REPORT.md](docs/PERFORMANCE-REPORT.md).
