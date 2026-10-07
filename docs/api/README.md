@@ -3,7 +3,7 @@
 | File | What it is |
 | --- | --- |
 | `openapi.yaml` | OpenAPI 3 description of every endpoint: the Gateway routes, plus the internal service-to-service endpoints (tag `internal`) |
-| `postman/E-Commerce-Platform.postman_collection.json` | 46 requests with assertions, in run order: tokens, products, reviews, inventory, orders, internal APIs, cleanup |
+| `postman/E-Commerce-Platform.postman_collection.json` | 47 requests with assertions, in run order: tokens, products, reviews, inventory, orders, internal APIs, cleanup |
 | `postman/local.postman_environment.json` | URLs for Docker Compose and empty secret fields; the secrets stay in your local `deployment/docker/.env` |
 
 ## Swagger UI

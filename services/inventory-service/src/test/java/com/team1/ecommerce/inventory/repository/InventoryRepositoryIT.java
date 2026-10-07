@@ -49,6 +49,11 @@ class InventoryRepositoryIT {
         assertThat(inventory.available(999L, 1)).isFalse();
     }
 
+    @Test void lowStockListsOnlySeededRowsBelowThreshold() {
+        // Threshold 1 keeps the result independent of the rows the PUT tests in this class write (4 and 8 units).
+        assertThat(inventory.lowStock(1)).extracting("productId").containsExactly(20L);
+    }
+
     @Test void putCreatesNewStockRow() throws Exception {
         org.mockito.Mockito.when(decoder.decode("gateway-service")).thenReturn(gateway());
         mvc.perform(put("/api/v1/inventory/1000").header("Authorization", "Bearer gateway-service")

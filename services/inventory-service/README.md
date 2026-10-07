@@ -22,6 +22,7 @@ Every request needs a token whose `aud` contains `inventory-service`.
 | Method and path | Caller | Result |
 | --- | --- | --- |
 | `GET /api/v1/inventory/check?productId&quantity` | `order-service` only, no Gateway route | 200 `{"available": true|false}`; unknown product → `false`; `quantity < 1` or missing parameter → 400 |
+| `GET /api/v1/inventory/low-stock?threshold` (default 10) | Gateway with `ADMIN` | 200 list of `{"productId","available","reserved"}` with `available < threshold`, lowest first; `threshold < 0` → 400 |
 | `GET /api/v1/inventory/{productId}` | Gateway with `ADMIN` | 200 `{"productId","available","reserved"}`; unknown → 404 |
 | `PUT /api/v1/inventory/{productId}` body `{"available": n}` (n ≥ 0) | Gateway with `ADMIN` | 200 with the same shape; creates the stock row if missing |
 
