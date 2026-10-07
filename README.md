@@ -32,6 +32,7 @@ Working agreement: [Team Charter](docs/TEAM-CHARTER.md). Agent and contributor r
 | [Backlog](docs/BACKLOG.md) | 15 stories with owners and Definitions of Done |
 | [Phase documents](docs/phases/) | Decisions, tests, evidence, and gate status for L0–L6 |
 | [Performance Report](docs/PERFORMANCE-REPORT.md) | k6 results and the Gateway bottleneck fix |
+| [Final Report](docs/FINAL-REPORT.md) | What we built, requirement traceability, test and coverage numbers, lessons learned |
 | [Demo script](docs/DEMO.md) | The 15-minute final demo, command by command |
 | [API docs](docs/api/README.md) | OpenAPI spec, Swagger UI, Postman collection |
 | Service READMEs | [product](services/product-service/README.md) · [order](services/order-service/README.md) · [payment](services/payment-service/README.md) · [inventory](services/inventory-service/README.md) · [notification](services/notification-service/README.md) · [review](services/review-service/README.md) |
