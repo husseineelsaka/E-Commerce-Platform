@@ -6,6 +6,8 @@ import com.team1.ecommerce.inventory.dto.StockView;
 import com.team1.ecommerce.inventory.service.InventoryService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -26,6 +28,11 @@ public class InventoryController {
     @GetMapping("/check")
     public StockCheck check(@RequestParam @Positive Long productId, @RequestParam @Positive int quantity) {
         return new StockCheck(inventory.available(productId, quantity));
+    }
+
+    @GetMapping("/low-stock")
+    public List<StockView> lowStock(@RequestParam(defaultValue = "10") @PositiveOrZero int threshold) {
+        return inventory.lowStock(threshold);
     }
 
     @GetMapping("/{productId}")

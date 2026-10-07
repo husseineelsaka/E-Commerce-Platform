@@ -69,6 +69,7 @@ All public APIs are under `/api/v1`. Errors use one JSON shape: `{"status": 409,
 | order | `GET /api/v1/orders?page&size` | CUSTOMER (own orders) | 200 page | 400 bad paging, 401 |
 | inventory | `GET /api/v1/inventory/check?productId&quantity` | `order-service` client only, no public route | 200 `{available}` | 400, 401, 403 |
 | inventory | `GET /api/v1/inventory/{productId}` · `PUT /api/v1/inventory/{productId}` | ADMIN via `gateway-service` | 200 | 400, 401, 403, 404 |
+| inventory | `GET /api/v1/inventory/low-stock?threshold` (default 10, ≥ 0) | ADMIN via `gateway-service` | 200 list of stock rows with `available < threshold`, lowest first | 400, 401, 403 |
 | payment | `POST /api/v1/payments` (header `Idempotency-Key`) | `payment-operator` client only, no public route | 201 (first) / 200 (repeat, same body) | 400 missing key, 401, 403, 409 order already paid under a different key, 422 same key with a different body |
 | payment | `POST /api/v1/payments/{id}/refund` | `payment-operator` client only | 200 | 401, 403, 404, 409 already refunded |
 | all | `GET /actuator/health`, `/actuator/prometheus` | Internal network only, never routed by Gateway | 200 | — |

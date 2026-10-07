@@ -103,6 +103,25 @@ class InventoryControllerTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
     }
 
+    @Test void adminListsLowStockBelowDefaultThreshold() throws Exception {
+        when(inventory.lowStock(10)).thenReturn(List.of(new StockView(20L, 0, 0)));
+        mvc.perform(get("/api/v1/inventory/low-stock").header("Authorization", "Bearer gateway-service")
+                        .header("X-User-Roles", "ADMIN"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].productId").value(20));
+    }
+
+    @Test void customerCannotListLowStock() throws Exception {
+        mvc.perform(get("/api/v1/inventory/low-stock").header("Authorization", "Bearer gateway-service")
+                        .header("X-User-Roles", "CUSTOMER"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test void negativeLowStockThresholdIsBadRequest() throws Exception {
+        mvc.perform(get("/api/v1/inventory/low-stock?threshold=-1").header("Authorization", "Bearer gateway-service")
+                        .header("X-User-Roles", "ADMIN"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
+    }
+
     @Test void unknownStockReturns404() throws Exception {
         when(inventory.find(999L)).thenThrow(new StockNotFoundException(999L));
         mvc.perform(get("/api/v1/inventory/999").header("Authorization", "Bearer gateway-service")

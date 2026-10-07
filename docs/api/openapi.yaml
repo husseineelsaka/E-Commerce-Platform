@@ -248,6 +248,26 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/inventory/low-stock:
+    get:
+      operationId: listLowStock
+      tags: [inventory]
+      summary: List low stock
+      description: Stock rows whose available quantity is below `threshold`, lowest first.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: threshold, in: query, required: false, schema: {type: integer, minimum: 0, default: 10}}
+      responses:
+        '200':
+          description: Stock rows below the threshold
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Stock'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/v1/inventory/{productId}:
     parameters:
       - name: productId
