@@ -1,0 +1,390 @@
+
+[1m0. Platform is up (L0, NFR-08)[0m
+  [32mPASS[0m every Compose container reports healthy
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m order path ready (Gateway -> Order -> Product + Inventory)
+  [32mPASS[0m Config Server serves application/default from config-repo
+  [32mPASS[0m Eureka has API-GATEWAY registered
+  [32mPASS[0m Eureka has PRODUCT-SERVICE registered
+  [32mPASS[0m Eureka has ORDER-SERVICE registered
+  [32mPASS[0m Eureka has PAYMENT-SERVICE registered
+  [32mPASS[0m Eureka has INVENTORY-SERVICE registered
+  [32mPASS[0m Eureka has NOTIFICATION-SERVICE registered
+  [32mPASS[0m Eureka has REVIEW-SERVICE registered
+
+[1m1. Catalogue, security, cache (L1: FR-01..FR-04, FR-13, FR-15)[0m
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-01 anonymous browse is public and paginated
+  [31mFAIL[0m FR-01 page has products and page metadata  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-03 product detail
+  [31mFAIL[0m FR-03 detail carries categoryName (read model)  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m unknown product answers 404
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-04 protected route without token -> 401
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-04 invalid token -> 401
+  [32mPASS[0m Keycloak issues customer and admin tokens
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-02 product write without token -> 401
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-02 product write as CUSTOMER -> 403
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m Gateway strips forged X-User-* headers (CUSTOMER + forged ADMIN header -> 403)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m invalid product body -> 400
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-02 ADMIN creates a product -> 201
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-15 product read is cached in Redis (products:item::)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-02 ADMIN updates the product -> 200  (expected 200, got 403: )
+  [31mFAIL[0m FR-15 write evicts the item and every list page  (keys left: products:item::1 products:item::2 products:item::20)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-15 next read shows the new value (no stale cache)  ()
+  [33mWARN[0m FR-13 rate limit  (no 429 seen: this machine could not send faster than 100 req/s; use k6/rate-limit-demo.js)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-13 another client (signed in, keyed by subject) is still served
+
+[1m2. Inventory, payment, place order (L2: FR-05, FR-06, FR-08, FR-10, FR-12, FR-14)[0m
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-12 ADMIN views stock
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-12 CUSTOMER cannot view stock -> 403
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-12 negative stock adjustment -> 400
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-12 ADMIN adjusts stock
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m low-stock query
+  [31mFAIL[0m low-stock lists product 20 (seeded with 0)  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m internal stock check has no public Gateway route
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m order without items -> 400
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m order for an unknown product -> 400
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-06 out-of-stock order rejected before payment -> 409
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m ADMIN without CUSTOMER role cannot order -> 403
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-05 place order -> 201
+  [31mFAIL[0m FR-05 answer is immediate with orderId and PENDING  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-10 customer reads own order by id  (expected 200, got 403: )
+  File "<string>", line 3
+    j=json.load(sys.stdin); v=str(float(j['items'][0]['unitPrice'])==).lower()
+                                                                     ^
+SyntaxError: invalid syntax
+  [31mFAIL[0m order freezes the price read from Product (unitPrice = catalogue price)  (price , )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-10 own-orders list contains the new order  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-10 an order that is not yours (or does not exist) -> 404
+  [32mPASS[0m Keycloak issues Client Credentials tokens (order-service, payment-operator)
+  [32mPASS[0m direct call to product-service without token -> 401
+  [32mPASS[0m a user token cannot call a service directly (wrong audience/client)
+  [32mPASS[0m FR-14 order-service token may call the stock check
+  [32mPASS[0m payment-operator token is refused on the stock check
+  [32mPASS[0m order-service token + forged ADMIN header cannot adjust stock
+  [32mPASS[0m payment without Idempotency-Key -> 400
+  [32mPASS[0m order-service token is refused on the Payment API
+  [32mPASS[0m FR-08 first payment -> 201 COMPLETED
+  [32mPASS[0m FR-08 same key again -> 200 with the SAME paymentId (charged once)
+  [32mPASS[0m same key with a different body -> 422
+  [32mPASS[0m FR-08 exactly one payment row in payment_db
+  [32mPASS[0m refund a completed payment -> 200
+  [32mPASS[0m refund twice -> 409
+
+[1m3. Saga, outbox, notification, tracing (L3/L5: FR-07, FR-09, FR-11, NFR-06, NFR-10)[0m
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-09 happy path: order reaches CONFIRMED  (last status )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-07 stock reserved for the order (available -1, reserved +1)  (before '' after '')
+ERROR:  invalid input syntax for type uuid: ""
+LINE 1: ...ECT count(*) FROM outbox_event WHERE aggregate_id='' AND pub...
+                                                             ^
+  [31mFAIL[0m outbox rows for the order were published  (unpublished=)
+  [31mFAIL[0m FR-11 customer notified of the confirmation  (notification lines: 5)
+ERROR:  invalid input syntax for type uuid: ""
+LINE 1: ...ayload::text FROM outbox_event WHERE aggregate_id='' AND eve...
+                                                             ^
+  [31mFAIL[0m NFR-10 duplicate delivery  (no PaymentCompleted outbox row found for )
+ERROR:  invalid input syntax for type uuid: ""
+LINE 1: ...arent,'-',2) FROM outbox_event WHERE aggregate_id='' AND eve...
+                                                             ^
+  [31mFAIL[0m NFR-06 one trace spans HTTP and Kafka (gateway, order, inventory, payment)  (services in trace : )
+  [31mFAIL[0m NFR-06 notification log line is JSON and carries the trace id  (notification-service-1  | {"@timestamp":"2026-10-11T01:11:21.021013584Z","log":{"level":"INFO","logger":"org.springframework.cloud.netflix.eureka.serviceregistr)
+
+[1m4. Reviews and ratings (L6: FR-16, Bonus B1)[0m
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m review without token -> 401  (expected 401, got 400: )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m rating outside 1..5 -> 400
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m B1 customer submits a review -> 201  (expected 201, got 400: )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m B1 second review by the same customer -> 409  (expected 409, got 400: )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m B1 reviews are public  (expected 200, got 400: )
+  [31mFAIL[0m B1 the review is listed  ()
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m B1 product detail shows reviewCount 1 and averageRating 5 (ReviewSubmitted projection)  ()
+
+[1m5. Observability (L5)[0m
+  [32mPASS[0m Prometheus scrapes every target (up 9 of 9)
+  [32mPASS[0m Grafana is up
+
+[1m6. Failure paths (chaos: NFR-01, NFR-05, FR-09 compensation, F4 circuit breaker, FR-11 DLT)[0m
+  ... restarting payment-service with PAYMENT_FAILURE_RATE=1.0
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m FR-09 payment declined -> order CANCELLED  (last status )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [32mPASS[0m FR-09 compensation released the stock (same numbers as before)
+ERROR:  invalid input syntax for type uuid: ""
+LINE 1: SELECT count(*) FROM reservation WHERE order_id='' AND statu...
+                                                        ^
+  [31mFAIL[0m NFR-05 no reservation left RESERVED after cancel  (RESERVED rows=)
+  [32mPASS[0m FR-11 customer notified of the cancellation
+  ... stopping payment-service (outage)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m NFR-01 Payment down: order stays PENDING (not lost, not failed)  (status )
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  [31mFAIL[0m NFR-01 after Payment restarts the order completes (CONFIRMED)  (last status )
+  ... stopping inventory-service (circuit breaker)
+  [32mPASS[0m F4 Inventory down -> every order answers 503, none created
+  [32mPASS[0m F4 circuit open -> fails fast (last call 0.073036s < 0.5s)
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+  ... restarting notification-service with NOTIFICATION_FAIL=true
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
+cat: /tmp/tmp.4ZfnKX5Gb8/body: No such file or directory
