@@ -40,3 +40,23 @@ Sign in as `customer-test` (shop, order, review, My orders) or `admin-test` (Adm
 - **Rate limit:** press *Rate-limit test*: 250 anonymous reads at once; the extra ones answer 429.
 - **Security:** as a customer, the Admin tab is hidden; calling an admin API anyway answers 403 in the request list.
 - **Cache:** edit a product price in Admin and reload the shop: the new price shows at once (cache evicted on write).
+
+## Guided tour (`/tour/`)
+
+**http://localhost:8070/tour/** is a narrated presentation of the project. The browser's built-in voice reads each step
+(Web Speech API, no account or download), and the steps advance on their own.
+
+1. **Why microservices** — the monolith problem, why it fits this shop, the costs and the fix for each, when a monolith
+   would win, and our own decisions.
+2. **Sessions S0–S24** — one plain-language recap per course session: the story, the idea, and where it is in our code.
+3. **Live platform** — calls the running platform and shows the real answers: Config Server values, the Eureka
+   registry, 200/401/403 at the Gateway, the decoded Keycloak token, cache timings, the rate limit, a real order going
+   PENDING → CONFIRMED, its Zipkin trace, a review (201/409) and Prometheus targets.
+
+Type the `customer-test` password (from `deployment/docker/.env`) in the header box. It stays in the page's memory only.
+**Open tool window** opens one extra window; every tool step (Zipkin, Prometheus, Grafana, Swagger, Keycloak) loads its
+real page there, so it can sit on the projector while the tour runs on the laptop. Keys: space = play/pause,
+← / → = previous / next.
+
+For the tour, `nginx.conf` also exposes four read-only (GET) views: the order-service config document, the Eureka
+registry, Zipkin trace search and the Prometheus query API. Nothing else on those servers is reachable.
