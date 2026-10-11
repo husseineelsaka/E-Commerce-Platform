@@ -39,3 +39,4 @@ AGENTS.md
 .windsurfrules
 .github/copilot-instructions.md
 .scaffold.py
+.env
