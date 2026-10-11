@@ -34,8 +34,10 @@ Working agreement: [Team Charter](docs/TEAM-CHARTER.md). Agent and contributor r
 | [Performance Report](docs/PERFORMANCE-REPORT.md) | k6 results and the Gateway bottleneck fix |
 | [Final Report](docs/FINAL-REPORT.md) | What we built, requirement traceability, test and coverage numbers, lessons learned |
 | [Demo script](docs/DEMO.md) | The 15-minute final demo, command by command |
+| [Storefront](frontend/README.md) | Web UI at http://localhost:8070 to demo the whole platform in a browser |
+| [Run guide](docs/RUN-GUIDE.md) | How to run all or one service, every test level, and what each service does, why, and how |
 | [API docs](docs/api/README.md) | OpenAPI spec, Swagger UI, Postman collection |
-| Service READMEs | [product](services/product-service/README.md) · [order](services/order-service/README.md) · [payment](services/payment-service/README.md) · [inventory](services/inventory-service/README.md) · [notification](services/notification-service/README.md) · [review](services/review-service/README.md) |
+| Service READMEs | [config-server](platform/config-server/README.md) · [eureka-server](platform/eureka-server/README.md) · [api-gateway](platform/api-gateway/README.md) · [product](services/product-service/README.md) · [order](services/order-service/README.md) · [payment](services/payment-service/README.md) · [inventory](services/inventory-service/README.md) · [notification](services/notification-service/README.md) · [review](services/review-service/README.md) |
 
 ## Requirements checklist
 
@@ -128,6 +130,7 @@ cp deployment/docker/.env.example deployment/docker/.env   # then replace every 
 docker compose -f deployment/docker/docker-compose.yml --env-file deployment/docker/.env up -d --build --wait
 ```
 
+- **Storefront web UI:** `http://localhost:8070` (sign in as `customer-test` or `admin-test`); see [frontend/README.md](frontend/README.md).
 - Only the Gateway is published for API traffic: `http://localhost:8080`. Product, order, payment, inventory, notification, review, Config Server, and Eureka have no host port (ADD §7). Infrastructure keeps its host ports for development tools.
 - Containers reach each other by service name (`postgres`, `kafka:29092`, `redis`, `keycloak:8180`, `config-server`, `eureka-server`).
 - Keycloak runs with `KC_HOSTNAME=http://localhost:8180`, so every token has the issuer `http://localhost:8180/realms/ecommerce-platform` whichever address fetched it. Services validate that issuer and load signing keys from `KEYCLOAK_JWK_SET_URI` (`http://keycloak:8180/...` in Compose); the Gateway and order-service fetch tokens from `KEYCLOAK_TOKEN_URI`.
@@ -165,6 +168,16 @@ curl -i -X POST http://localhost:8080/api/v1/products/6/reviews -H "Authorizatio
 curl -s 'http://localhost:8080/api/v1/products/6/reviews?page=0&size=10' | jq        # public, newest first
 curl -s http://localhost:8080/api/v1/products/6 | jq '{averageRating, reviewCount}'
 ```
+
+## Test everything
+
+```sh
+bash scripts/e2e-test.sh            # end-to-end checks of every requirement through the Gateway (stack running)
+bash scripts/e2e-test.sh --chaos    # also compensation, Payment outage, circuit breaker, DLT (restarts containers)
+bash scripts/test-all.sh            # mvn verify, start the stack, end-to-end, k6 smoke — stops at the first failure
+```
+
+See [docs/RUN-GUIDE.md](docs/RUN-GUIDE.md) §6 for what each level proves.
 
 ## Kubernetes, observability, and load tests
 
