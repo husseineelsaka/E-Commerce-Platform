@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team 1 Market</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div>
+      <h1>Team 1 Market</h1>
+      <p class="sub">A storefront on our microservices platform. Every action goes through the API Gateway.</p>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Sections">
+    <button class="tab" data-view="shop" aria-current="page">Shop</button>
+    <button class="tab" data-view="orders" data-need="CUSTOMER">My orders</button>
+    <button class="tab" data-view="admin" data-need="ADMIN">Admin</button>
+    <button class="tab" data-view="about">How it works</button>
+  </nav>
+  <div class="who" id="who">
+    <button class="btn" id="signin-open">Sign in</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="main" id="main">
+    <!-- Shop -->
+    <div class="view" id="view-shop">
+      <div class="view-head">
+        <h2>Catalogue</h2>
+        <p class="hint">Public read: no sign-in needed. Served by product-service, cached in Redis.</p>
+      </div>
+      <div class="grid" id="products"></div>
+      <div class="pager">
+        <button class="btn ghost" id="prev">Previous page</button>
+        <span id="pageinfo"></span>
+        <button class="btn ghost" id="next">Next page</button>
+      </div>
+    </div>
+
+    <!-- Orders -->
+    <div class="view" id="view-orders" hidden>
+      <div class="view-head">
+        <h2>My orders</h2>
+        <p class="hint">order-service returns only your own orders: the customer id comes from the Gateway, never from the browser.</p>
+      </div>
+      <table class="table" id="orders-table">
+        <thead><tr><th>Order</th><th>Placed</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Admin -->
+    <div class="view" id="view-admin" hidden>
+      <div class="view-head">
+        <h2>Admin</h2>
+        <p class="hint">ADMIN role only. A customer token gets 403 from the Gateway.</p>
+      </div>
+      <div class="admin-cols">
+        <form class="panel" id="product-form">
+          <h3 id="pf-title">Add a product</h3>
+          <input type="hidden" id="pf-id">
+          <label>Name <input id="pf-name" required maxlength="255"></label>
+          <label>Price <input id="pf-price" type="number" step="0.01" min="0.01" required></label>
+          <label>Category
+            <select id="pf-cat">
+              <option value="1">Electronics</option><option value="2">Home</option>
+              <option value="3">Books</option><option value="4">Outdoors</option>
+            </select>
+          </label>
+          <div class="row">
+            <button class="btn" type="submit" id="pf-save">Add product</button>
+            <button class="btn ghost" type="button" id="pf-cancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+        <div class="panel">
+          <h3>Low stock</h3>
+          <label class="inline">Below <input id="ls-threshold" type="number" min="0" value="10"> units
+            <button class="btn ghost" id="ls-load" type="button">Check</button></label>
+          <ul class="plain" id="lowstock"></ul>
+        </div>
+      </div>
+      <h3 class="section-title">Products and stock</h3>
+      <table class="table" id="stock-table">
+        <thead><tr><th>Product</th><th>Price</th><th>Available</th><th>Reserved</th><th>Set available</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- About -->
+    <div class="view" id="view-about" hidden>
+      <div class="view-head">
+        <h2>How it works</h2>
+        <p class="hint">What happens behind each button on this page.</p>
+      </div>
+      <figure class="arch">
+        <svg viewBox="0 0 770 340" role="img" aria-label="Browser to Gateway to services, with Kafka between Order, Inventory, Payment and Notification">
+          <g class="n"><rect x="10" y="20" width="150" height="54" rx="8"/><text x="85" y="52">Browser :8070</text></g>
+          <g class="n"><rect x="10" y="120" width="150" height="54" rx="8"/><text x="85" y="152">Keycloak :8180</text></g>
+          <g class="n hot"><rect x="230" y="20" width="170" height="54" rx="8"/><text x="315" y="44">API Gateway :8080</text><text x="315" y="62" class="s">JWT · roles · rate limit</text></g>
+          <g class="n"><rect x="470" y="20" width="130" height="44" rx="8"/><text x="535" y="47">product</text></g>
+          <g class="n"><rect x="620" y="20" width="130" height="44" rx="8"/><text x="685" y="47">review</text></g>
+          <g class="n"><rect x="470" y="100" width="130" height="44" rx="8"/><text x="535" y="127">order</text></g>
+          <g class="n"><rect x="620" y="100" width="130" height="44" rx="8"/><text x="685" y="127">inventory</text></g>
+          <g class="n"><rect x="470" y="250" width="130" height="44" rx="8"/><text x="535" y="277">payment</text></g>
+          <g class="n"><rect x="620" y="250" width="130" height="44" rx="8"/><text x="685" y="277">notification</text></g>
+          <rect class="kafka" x="460" y="180" width="300" height="34" rx="6"/><text class="kt" x="610" y="202">Kafka: order · inventory · payment · review events</text>
+          <path class="e" d="M85 74 V120"/><path class="e" d="M160 47 H230"/><path class="e" d="M400 40 H470"/><path class="e" d="M400 55 Q440 55 440 122 H470"/>
+          <path class="e" d="M600 122 H620"/><path class="e" d="M535 64 V100"/>
+          <path class="e dash" d="M535 144 V180"/><path class="e dash" d="M685 144 V180"/><path class="e dash" d="M535 214 V250"/><path class="e dash" d="M685 214 V250"/><path class="e dash" d="M750 42 Q762 42 762 60 V180"/>
+          <text class="lg" x="10" y="330">solid: HTTP (sync) · dashed: Kafka events (async Saga)</text>
+        </svg>
+      </figure>
+      <ol class="steps">
+        <li><b>Sign in</b> asks Keycloak for a token. The Gateway checks it, deletes any X-User headers you send, adds your real identity, and calls the services with its own service token.</li>
+        <li><b>Order</b> checks price (product) and stock (inventory) synchronously, saves the order as PENDING with an outbox event in one transaction, and answers 201 at once.</li>
+        <li><b>The Saga</b> continues over Kafka: inventory reserves, payment charges once, order becomes CONFIRMED and notification tells you. If payment fails, stock is released and the order is CANCELLED.</li>
+        <li><b>Reviews</b> are stored by review-service; product-service updates the average from a ReviewSubmitted event, so the rating appears a moment later.</li>
+      </ol>
+      <div class="links">
+        <a class="btn ghost" href="http://localhost:9411" target="_blank" rel="noopener">Zipkin traces</a>
+        <a class="btn ghost" href="http://localhost:3000" target="_blank" rel="noopener">Grafana dashboard</a>
+        <a class="btn ghost" href="http://localhost:8089" target="_blank" rel="noopener">Swagger UI</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- The wire: what the page just did, live -->
+  <aside class="wire" aria-label="Live activity">
+    <div class="saga" id="saga" hidden>
+      <h3>Your latest order</h3>
+      <p class="saga-id" id="saga-id"></p>
+      <ol class="track" id="track">
+        <li data-step="placed"><span>Order saved</span><small>order-service · PENDING</small></li>
+        <li data-step="reserved"><span>Stock reserved</span><small>inventory-service</small></li>
+        <li data-step="paid"><span>Payment taken</span><small>payment-service</small></li>
+        <li data-step="done"><span>Confirmed</span><small>notification sent</small></li>
+      </ol>
+      <p class="saga-note" id="saga-note"></p>
+    </div>
+    <div class="log-head">
+      <h3>Requests from this page</h3>
+      <button class="btn ghost small" id="burst" title="Sends 250 anonymous product reads at once">Rate-limit test</button>
+    </div>
+    <ol class="log" id="log" aria-live="polite"><li class="empty hint">Each call this page makes shows up here with its status code and time.</li></ol>
+  </aside>
+</main>
+
+<!-- Product detail -->
+<dialog id="detail">
+  <form method="dialog" class="close-row"><button class="btn ghost small" aria-label="Close">Close</button></form>
+  <div id="detail-body"></div>
+</dialog>
+
+<!-- Sign in -->
+<dialog id="signin">
+  <form id="signin-form" class="panel flat">
+    <h3>Sign in</h3>
+    <p class="hint">Test users from the Keycloak realm. Passwords are in <code>deployment/docker/.env</code>.</p>
+    <div class="row">
+      <button class="btn ghost small" type="button" data-user="customer-test">Customer</button>
+      <button class="btn ghost small" type="button" data-user="admin-test">Admin</button>
+    </div>
+    <label>Username <input id="si-user" autocomplete="username" required></label>
+    <label>Password <input id="si-pass" type="password" autocomplete="current-password" required></label>
+    <p class="error" id="si-error" hidden></p>
+    <div class="row">
+      <button class="btn" type="submit">Sign in</button>
+      <button class="btn ghost" type="button" id="si-cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
